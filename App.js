@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -8,6 +9,9 @@ import { Colors } from './src/constants';
 import { StatusBar } from 'expo-status-bar';
 
 import { CustomDrawerContent } from './src/components/CustomDrawerContent';
+import { CustomTabBar } from './src/components/CustomTabBar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import DashboardScreen from './src/screens/DashboardScreen';
 import VehicleCategoryScreen from './src/screens/VehicleCategoryScreen';
@@ -24,8 +28,13 @@ import FormScreen from './src/screens/FormScreen';
 import OrderListScreen from './src/screens/OrderListScreen';
 import GarageScreen from './src/screens/GarageScreen';
 import InvoiceListScreen from './src/screens/InvoiceListScreen';
+import VehicleManagerScreen from './src/screens/VehicleManagerScreen';
+import TechnicianListScreen from './src/screens/TechnicianListScreen';
+import AppointmentListScreen from './src/screens/AppointmentListScreen';
 
 import { Home, ClipboardList, List, Wrench, LayoutDashboard, Search } from 'lucide-react-native';
+import SplashScreen from './src/screens/SplashScreen';
+import { useData } from './src/context/DataContext';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -49,12 +58,10 @@ function VehicleReferenceStack() {
 function MainTabs() {
   return (
     <Tab.Navigator
+      backBehavior="initialRoute"
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { height: 60, backgroundColor: Colors.card, borderTopColor: Colors.border, paddingBottom: 5 },
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textSecondary,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' }
       }}
     >
       <Tab.Screen
@@ -105,6 +112,42 @@ function MainTabs() {
           tabBarLabel: 'GARAGE'
         }}
       />
+      <Tab.Screen
+        name="AppointmentList"
+        component={AppointmentListScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="VehicleList"
+        component={VehicleManagerScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="ClientList"
+        component={ClientListScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="InvoicingList"
+        component={GenericListScreen}
+        initialParams={{ title: 'Facturando', dataKey: 'facturando' }}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="TechnicianList"
+        component={TechnicianListScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="GenericDetails"
+        component={GenericDetailsScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="Form"
+        component={FormScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
     </Tab.Navigator>
   );
 }
@@ -116,42 +159,41 @@ function MainStack() {
       cardStyle: { backgroundColor: Colors.background }
     }}>
       <Stack.Screen name="Tabs" component={MainTabs} />
-      <Stack.Screen name="GenericDetails" component={GenericDetailsScreen} />
-      <Stack.Screen name="Form" component={FormScreen} />
     </Stack.Navigator>
+  );
+}
+
+function AppContent() {
+  const { loading } = useData();
+
+  if (loading) {
+    return <SplashScreen />;
+  }
+
+  return (
+    <NavigationContainer>
+      <StatusBar style="light" />
+      <Drawer.Navigator
+        drawerContent={(props) => <CustomDrawerContent {...props} />}
+        screenOptions={{
+          headerShown: false,
+          drawerStyle: { width: 300 },
+        }}
+      >
+        <Drawer.Screen name="Main" component={MainStack} />
+      </Drawer.Navigator>
+    </NavigationContainer>
   );
 }
 
 export default function App() {
   return (
-    <DataProvider>
-      <NavigationContainer>
-        <StatusBar style="light" />
-        <Drawer.Navigator
-          drawerContent={(props) => <CustomDrawerContent {...props} />}
-          screenOptions={{
-            headerShown: false,
-            drawerStyle: { width: 300 },
-          }}
-        >
-          <Drawer.Screen name="Main" component={MainStack} />
-          <Drawer.Screen name="GenericDetails" component={GenericDetailsScreen} />
-          <Drawer.Screen name="Form" component={FormScreen} />
-          <Drawer.Screen name="Citas" component={GenericListScreen} initialParams={{ title: 'Citas', dataKey: 'citas' }} />
-          <Drawer.Screen name="Clients" component={ClientListScreen} />
-          <Drawer.Screen name="InvoiceDetails" component={GenericListScreen} initialParams={{ title: 'Detalle de Factura', dataKey: 'detalleFactura' }} />
-          <Drawer.Screen name="Entradas" component={GenericListScreen} initialParams={{ title: 'Entradas', dataKey: 'entradas' }} />
-          <Drawer.Screen name="Facturando" component={GenericListScreen} initialParams={{ title: 'Facturando', dataKey: 'facturando' }} />
-          <Drawer.Screen name="Invoices" component={InvoiceListScreen} />
-          <Drawer.Screen name="FotosEntrada" component={GenericListScreen} initialParams={{ title: 'Fotos Entrada', dataKey: 'fotosEntrada' }} />
-          <Drawer.Screen name="FotosSalidas" component={GenericListScreen} initialParams={{ title: 'Fotos Salidas', dataKey: 'fotosSalidas' }} />
-          <Drawer.Screen name="Productos" component={GenericListScreen} initialParams={{ title: 'Productos', dataKey: 'productos' }} />
-          <Drawer.Screen name="Salidas" component={GenericListScreen} initialParams={{ title: 'Salidas', dataKey: 'salidas' }} />
-          <Drawer.Screen name="Tecnicos" component={GenericListScreen} initialParams={{ title: 'Técnicos', dataKey: 'tecnicos' }} />
-          <Drawer.Screen name="Herramientas" component={GenericListScreen} initialParams={{ title: 'Herramientas', dataKey: 'herramientas' }} />
-          <Drawer.Screen name="ReferenceStack" component={VehicleReferenceStack} />
-        </Drawer.Navigator>
-      </NavigationContainer>
-    </DataProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <DataProvider>
+          <AppContent />
+        </DataProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

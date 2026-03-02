@@ -10,28 +10,47 @@ const DetailItem = ({ label, value }) => (
     </View>
 );
 
+// Campos técnicos a ocultar (IDs internos, referencias técnicas, etc.)
+const hiddenFields = ['id', 'ref', 'pdf', 'PDF', 'firma', 'Firma', 'foto', 'Foto', 'fotos', 'Fotos', 'image', 'Image', 'images', 'Images'];
+
 export default function GenericDetailsScreen({ route, navigation }) {
     const { item, title } = route.params;
+
+    // Filtrar campos técnicos
+    const visibleEntries = Object.entries(item).filter(([key]) => {
+        const keyLower = key.toLowerCase();
+        // Ocultar campos que contengan patrones técnicos
+        return !hiddenFields.some(hidden => keyLower.includes(hidden.toLowerCase()));
+    });
 
     return (
         <View style={styles.container}>
             <CustomHeader
                 title={`DETALLE: ${title}`}
                 showBack={true}
-                leftAction={() => navigation.goBack()}
+                leftAction={() => {
+                    const titleLower = title.toLowerCase();
+                    if (titleLower.includes('orden')) navigation.navigate('Orders');
+                    else if (titleLower.includes('técnico') || titleLower.includes('tecnico')) {
+                        if (titleLower.includes('detalle')) navigation.navigate('VehicleSearch');
+                        else navigation.navigate('TechnicianList');
+                    }
+                    else if (titleLower.includes('vehículo') || titleLower.includes('vehiculo')) navigation.navigate('VehicleList');
+                    else if (titleLower.includes('cliente')) navigation.navigate('ClientList');
+                    else if (titleLower.includes('cita')) navigation.navigate('AppointmentList');
+                    else if (titleLower.includes('facturando')) navigation.navigate('InvoicingList');
+                    else navigation.navigate('Dashboard');
+                }}
             />
             <ScrollView contentContainerStyle={styles.scroll}>
                 <View style={styles.card}>
-                    {Object.entries(item).map(([key, value]) => {
-                        if (key === 'id') return null;
-                        return (
-                            <DetailItem
-                                key={key}
-                                label={key.replace(/_/g, ' ').toUpperCase()}
-                                value={value?.toString()}
-                            />
-                        );
-                    })}
+                    {visibleEntries.map(([key, value]) => (
+                        <DetailItem
+                            key={key}
+                            label={key.replace(/_/g, ' ').toUpperCase()}
+                            value={value?.toString()}
+                        />
+                    ))}
                 </View>
             </ScrollView>
         </View>

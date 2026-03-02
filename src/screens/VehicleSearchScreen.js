@@ -17,12 +17,12 @@ export default function VehicleSearchScreen({ navigation }) {
         return uniqueBrands;
     }, [catalog]);
 
-    const filteredBrands = brands.filter(b => b && b.toLowerCase().includes(search.toLowerCase()));
+    const filteredBrands = brands.filter(b => b && String(b).toLowerCase().includes(search.toLowerCase()));
 
     const modelsForBrand = useMemo(() => {
         if (!selectedBrand) return [];
         return catalog.filter(item => item.Marca === selectedBrand &&
-            item.Modelo && item.Modelo.toLowerCase().includes(search.toLowerCase()));
+            item.Modelo && String(item.Modelo).toLowerCase().includes(search.toLowerCase()));
     }, [selectedBrand, catalog, search]);
 
     const getBrandLogo = (brand) => {

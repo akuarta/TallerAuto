@@ -1,19 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Menu, Search, CheckSquare, RotateCw, ArrowLeft } from 'lucide-react-native';
+import { Menu, ArrowLeft } from 'lucide-react-native';
 import { Colors } from '../constants';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const CustomHeader = ({ title, showBack = null, leftAction = null, leftIcon = null }) => {
     const navigation = useNavigation();
-
-    // Si hay una acción personalizada, la usamos. Si no, detectamos automáticamente
+    const insets = useSafeAreaInsets();
     const canGoBack = leftAction ? true : (showBack !== null ? showBack : navigation.canGoBack());
 
     const handleLeftPress = () => {
         if (leftAction) {
             leftAction();
         } else if (canGoBack) {
+            // Si estamos dentro de un tab oculto (como Form), forzar volver al stack principal si goBack falla
             navigation.goBack();
         } else {
             navigation.openDrawer();
@@ -21,81 +22,57 @@ export const CustomHeader = ({ title, showBack = null, leftAction = null, leftIc
     };
 
     return (
-        <View style={styles.header}>
-            <View style={styles.left}>
-                {leftIcon ? (
-                    <TouchableOpacity onPress={handleLeftPress}>
-                        {leftIcon}
-                    </TouchableOpacity>
-                ) : (
-                    <TouchableOpacity onPress={handleLeftPress}>
-                        {canGoBack ? (
-                            <ArrowLeft size={24} color={Colors.text} />
-                        ) : (
-                            <Menu size={24} color={Colors.text} />
-                        )}
-                    </TouchableOpacity>
-                )}
-                <View style={styles.logoPlaceholder}>
-                    <Text style={styles.logoText}>TA</Text>
-                </View>
-            </View>
-            <Text style={styles.title} numberOfLines={1}>{title}</Text>
-            <View style={styles.right}>
-                <TouchableOpacity style={styles.iconButton}>
-                    <Search size={22} color={Colors.text} />
+        <View style={[styles.wrapper, { paddingTop: insets.top }]}>
+            <View style={styles.header}>
+                {/* Botón izquierdo */}
+                <TouchableOpacity style={styles.sideBtn} onPress={handleLeftPress}>
+                    {leftIcon ? leftIcon : (
+                        canGoBack
+                            ? <ArrowLeft size={24} color={Colors.text} />
+                            : <Menu size={24} color={Colors.text} />
+                    )}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.iconButton}>
-                    <CheckSquare size={22} color={Colors.text} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.iconButton}>
-                    <RotateCw size={22} color={Colors.text} />
-                </TouchableOpacity>
+
+                {/* Título centrado */}
+                <Text style={styles.title} numberOfLines={1}>{title}</Text>
+
+                {/* Espacio derecho para balancear */}
+                <View style={styles.sideBtn} />
             </View>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    header: {
-        height: 60,
-        backgroundColor: '#1A1A1A',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
+    wrapper: {
+        backgroundColor: Colors.card,
         borderBottomWidth: 1,
         borderBottomColor: Colors.border,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
     },
-    left: {
+    header: {
+        height: 56,
         flexDirection: 'row',
         alignItems: 'center',
+        paddingHorizontal: 8,
     },
-    logoPlaceholder: {
-        width: 32,
-        height: 32,
-        backgroundColor: Colors.primary,
-        borderRadius: 4,
-        marginLeft: 12,
+    sideBtn: {
+        width: 44,
+        height: 44,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    logoText: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 12,
     },
     title: {
         flex: 1,
         color: Colors.text,
-        fontSize: 18,
-        fontWeight: '600',
-        marginLeft: 12,
-    },
-    right: {
-        flexDirection: 'row',
-    },
-    iconButton: {
-        marginLeft: 16,
+        fontSize: 17,
+        fontWeight: '700',
+        textAlign: 'center',
+        textTransform: 'uppercase',
+        letterSpacing: 1.5,
     },
 });

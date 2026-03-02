@@ -13,9 +13,9 @@ export const VehicleCard = ({ vehicle, onPress, onEdit, showMatricula = true }) 
                 <View style={styles.info}>
                     <Text style={styles.title}>{vehicle.Marca} {vehicle.Modelo}</Text>
                     {showMatricula ? (
-                        <Text style={styles.subtitle}>{vehicle.Matricula} • {vehicle['Año de Fabricacion']}</Text>
+                        <Text style={styles.subtitle}>{vehicle.Matricula || vehicle.Placa} • {vehicle['Año de Fabricacion'] || vehicle.Año}</Text>
                     ) : (
-                        <Text style={styles.subtitle}>Modelo {vehicle['Año de Fabricacion']} • {vehicle.Tipo || 'Disponible'}</Text>
+                        <Text style={styles.subtitle}>Modelo {vehicle['Año de Fabricacion'] || vehicle.Año} • {vehicle.Tipo || 'Disponible'}</Text>
                     )}
                 </View>
             </TouchableOpacity>

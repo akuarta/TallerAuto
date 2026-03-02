@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, FlatList, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
+import { FlatList, TouchableOpacity } from 'react-native-gesture-handler';
 import { Colors } from '../constants';
 import { useData } from '../context/DataContext';
 import { List, ChevronRight, Plus, Trash2, Edit2 } from 'lucide-react-native';
@@ -10,14 +11,22 @@ export default function GenericListScreen({ route, navigation }) {
     const { title, dataKey } = route.params;
     const allData = useData();
     const listData = allData[dataKey] || [];
+    const vehiculos = allData.vehiculos || [];
     const loading = allData.loading;
+
+    const getActualMatricula = (matriculaId) => {
+        if (!matriculaId) return matriculaId;
+        const vehiculo = vehiculos.find(v => v['ID Vehiculo'] === matriculaId || v.id === matriculaId || v.Matricula === matriculaId);
+        return vehiculo?.Matricula ? vehiculo.Matricula : matriculaId;
+    };
 
     // Campos por defecto si la lista está vacía
     const defaultFields = {
-        citas: ['ID_Cita', 'Tipo de cita', 'Turno', 'Agendado', 'Cliente', 'Fecha '],
-        tecnicos: ['ID_tecnico', 'tecnicos', 'especialidad', 'telefono'],
-        productos: ['id', 'producto', 'marca', 'precio', 'stock'],
-        garage: ['TURNO', 'CLIENTE', 'MATRICULA ', 'DATOS VEH.', 'FECHA ENTRADA', 'ESTADO'],
+        citas: ['ID_Cita', 'Fecha', 'Hora', 'Cliente', 'Matricula', 'Tipo de cita', 'Turno', 'Agendado', 'Estado', 'Notas'],
+        tecnicos: ['ID_tecnico', 'tecnico', 'especialidad', 'telefono'],
+        productos: ['IDproducto', 'Producto', 'costo', 'precio', 'existencia'],
+        servicios: ['id_servicio', 'Servicio', 'costo', 'descripcion', 'tiempo', 'tecnico'],
+        garage: ['TURNO', 'CLIENTE', 'MATRICULA', 'DATOS VEH.', 'FECHA ENTRADA', 'ESTADO'],
         entradas: ['IdEntrada', 'Fecha', 'Hora', 'Cliente', 'Matricula'],
         facturando: ['IdFacturacion', 'Fecha', 'Cliente', 'Total'],
         herramientas: ['ID_herramienta', 'herramienta', 'estado'],
@@ -27,8 +36,6 @@ export default function GenericListScreen({ route, navigation }) {
     const fields = listData.length > 0
         ? Object.keys(listData[0]).filter(k => k !== 'id')
         : (defaultFields[dataKey] || ['Nombre', 'Descripción', 'Fecha']);
-
-    if (loading) return <View style={styles.container}><Text style={{ color: 'white' }}>Cargando...</Text></View>;
 
     return (
         <View style={styles.container}>
@@ -46,6 +53,7 @@ export default function GenericListScreen({ route, navigation }) {
                     </View>
                 ) : (
                     <FlatList
+                        style={{ flex: 1 }}
                         data={listData}
                         keyExtractor={(item, index) => item.id || index.toString()}
                         renderItem={({ item }) => (
@@ -62,7 +70,15 @@ export default function GenericListScreen({ route, navigation }) {
                                             {item.Nombre || item.Descripcion || item.Fecha || item.Marca || item.Modelo || 'Registro'}
                                         </Text>
                                         <Text style={styles.subtitle} numberOfLines={1}>
-                                            {Object.values(item).filter(v => v && typeof v === 'string' && v.length < 50).slice(1, 4).join(' | ')}
+                                            {Object.entries(item)
+                                                .filter(([k, v]) => k !== 'id' && v && typeof v === 'string' && v.length < 50)
+                                                .map(([k, v]) => {
+                                                    if (k.toLowerCase() === 'matricula' || k.toLowerCase() === 'placa') {
+                                                        return getActualMatricula(v);
+                                                    }
+                                                    return v;
+                                                })
+                                                .slice(0, 3).join(' | ')}
                                         </Text>
                                     </View>
                                 </TouchableOpacity>
@@ -80,7 +96,8 @@ export default function GenericListScreen({ route, navigation }) {
                                 </View>
                             </View>
                         )}
-                        contentContainerStyle={{ paddingBottom: 100 }}
+                        contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
+                        nestedScrollEnabled={true}
                     />
                 )}
             </View>

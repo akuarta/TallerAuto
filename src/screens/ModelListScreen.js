@@ -18,7 +18,7 @@ export default function ModelListScreen({ route, navigation }) {
     )].filter(Boolean).sort();
 
     const filteredModels = models.filter(model =>
-        model.toLowerCase().includes(search.toLowerCase())
+        String(model || '').toLowerCase().includes(search.toLowerCase())
     );
 
     return (

@@ -6,22 +6,37 @@ import { Colors } from '../constants';
 
 export function CustomDrawerContent(props) {
     const menuItems = [
-        { label: 'CITAS', icon: <Calendar size={22} color={Colors.textSecondary} />, navigateTo: 'Citas' },
-        { label: 'CLIENTES', icon: <Users size={22} color={Colors.textSecondary} />, navigateTo: 'Clients' },
-        { label: 'DETALLE DE FACTURA', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'InvoiceDetails' },
-        { label: 'ENTRADAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Entradas' },
-        { label: 'Facturando', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Facturando' },
-        { label: 'FACTURAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Invoices' },
-        { label: 'FOTOS ENTRADA', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'FotosEntrada' },
-        { label: 'FOTOS SALIDAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'FotosSalidas' },
-        { label: 'PRODUCTOS', icon: <Package size={22} color={Colors.textSecondary} />, navigateTo: 'Productos' },
-        { label: 'SALIDAS', icon: <ArrowUpRight size={22} color={Colors.textSecondary} />, navigateTo: 'Salidas' },
-        { label: 'TECNICOS', icon: <Wrench size={22} color={Colors.textSecondary} />, navigateTo: 'Tecnicos' },
-        { label: 'Herramientas', icon: <Wrench size={22} color={Colors.textSecondary} />, navigateTo: 'Herramientas' },
-        { label: 'About', icon: <Info size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard' },
-        { label: 'Share', icon: <Share2 size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard' },
-        { label: 'App Gallery', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard' },
+        { label: 'CITAS', icon: <Calendar size={22} color={Colors.textSecondary} />, navigateTo: 'AppointmentList', inTabs: true },
+        { label: 'CLIENTES', icon: <Users size={22} color={Colors.textSecondary} />, navigateTo: 'ClientList', inTabs: true },
+        { label: 'ÓRDENES', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Orders', inTabs: true },
+        { label: 'DETALLE DE FACTURA', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'GenericDetails', inTabs: true },
+        { label: 'ENTRADAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Entradas', inTabs: true },
+        { label: 'Facturando', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'InvoicingList', inTabs: true },
+        { label: 'FACTURAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Billing', inTabs: true },
+        { label: 'FOTOS ENTRADA', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'FotosEntrada', inTabs: true },
+        { label: 'FOTOS SALIDAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'FotosSalidas', inTabs: true },
+        { label: 'PRODUCTOS', icon: <Package size={22} color={Colors.textSecondary} />, navigateTo: 'Productos', inTabs: true },
+        { label: 'SALIDAS', icon: <ArrowUpRight size={22} color={Colors.textSecondary} />, navigateTo: 'Salidas', inTabs: true },
+        { label: 'TECNICOS', icon: <Wrench size={22} color={Colors.textSecondary} />, navigateTo: 'TechnicianList', inTabs: true },
+        { label: 'Herramientas', icon: <Wrench size={22} color={Colors.textSecondary} />, navigateTo: 'Herramientas', inTabs: true },
+        { label: 'Vehículos', icon: <Users size={22} color={Colors.textSecondary} />, navigateTo: 'VehicleList', inTabs: true },
+        { label: 'CATALOGO', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'Catálogo', inTabs: true },
+        { label: 'About', icon: <Info size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard', inTabs: true },
+        { label: 'Share', icon: <Share2 size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard', inTabs: true },
+        { label: 'App Gallery', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard', inTabs: true },
     ];
+
+    const handleNavigation = (item) => {
+        if (item.inTabs) {
+            // Navegación anidada para mantener las pestañas (Tabs -> MainStack -> Drawer)
+            props.navigation.navigate('Main', {
+                screen: 'Tabs',
+                params: { screen: item.navigateTo }
+            });
+        } else {
+            props.navigation.navigate(item.navigateTo);
+        }
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: '#222' }}>
@@ -43,7 +58,7 @@ export function CustomDrawerContent(props) {
                     <TouchableOpacity
                         key={index}
                         style={styles.drawerItem}
-                        onPress={() => props.navigation.navigate(item.navigateTo)}
+                        onPress={() => handleNavigation(item)}
                     >
                         <View style={styles.iconContainer}>{item.icon}</View>
                         <Text style={styles.drawerLabel}>{item.label}</Text>
@@ -69,39 +84,51 @@ export function CustomDrawerContent(props) {
 
 const styles = StyleSheet.create({
     header: {
-        height: 140,
-        backgroundColor: '#333',
+        height: 160,
+        backgroundColor: Colors.primary,
         padding: 20,
-        paddingTop: 40,
+        paddingTop: 50,
         flexDirection: 'row',
         alignItems: 'center',
+        borderBottomLeftRadius: 20,
+        borderBottomRightRadius: 20,
+        marginBottom: 10,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
     },
     logoContainer: {
-        marginRight: 12,
+        marginRight: 15,
     },
     logoBox: {
-        width: 60,
-        height: 60,
-        backgroundColor: '#111',
-        borderRadius: 8,
+        width: 64,
+        height: 64,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)',
     },
     logoText: {
-        fontSize: 30,
+        fontSize: 34,
     },
     headerTitleContainer: {
         flex: 1,
     },
     headerTitle: {
         color: '#FFF',
-        fontSize: 20,
-        fontWeight: '400',
+        fontSize: 18,
+        fontWeight: '300',
+        opacity: 0.9,
     },
     headerSubtitle: {
         color: '#FFF',
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: 'bold',
+        letterSpacing: 0.5,
     },
     drawerItem: {
         flexDirection: 'row',

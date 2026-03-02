@@ -22,8 +22,8 @@ export default function VehicleListScreen({ route, navigation }) {
     }
 
     const filteredVehicles = listData.filter(v =>
-        v.Marca.toLowerCase().includes(search.toLowerCase()) ||
-        v.Modelo.toLowerCase().includes(search.toLowerCase())
+        String(v.Marca || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(v.Modelo || '').toLowerCase().includes(search.toLowerCase())
     );
 
     if (loading) return <View style={styles.container}><Text style={{ color: 'white' }}>Cargando...</Text></View>;

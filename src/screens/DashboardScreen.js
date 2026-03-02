@@ -1,113 +1,199 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 import { Colors } from '../constants';
-import { ClipboardList, Car, Users, FileCheck } from 'lucide-react-native';
+import { ClipboardList, Car, Users, FileCheck, Warehouse, Calendar, Wrench, Search } from 'lucide-react-native';
 import { CustomHeader } from '../components/CustomHeader';
-import { FAB } from '../components/FAB';
+import { useData } from '../context/DataContext';
 
-const DashboardCard = ({ title, icon, color, onPress }) => (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-        <View style={styles.cardHeader}>
-            {icon}
-        </View>
-        <View style={styles.cardFooter}>
-            <Text style={styles.cardTitle}>{title}</Text>
-        </View>
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = (width - 48) / 2;
+
+const StatCard = ({ title, count, icon, onPress }) => (
+    <TouchableOpacity style={styles.statCard} onPress={onPress} activeOpacity={0.75}>
+        <View style={styles.statIcon}>{icon}</View>
+        <Text style={styles.statCount}>{count ?? '—'}</Text>
+        <Text style={styles.statLabel}>{title}</Text>
+    </TouchableOpacity>
+);
+
+const ShortcutBtn = ({ label, icon, onPress }) => (
+    <TouchableOpacity style={styles.shortcut} onPress={onPress} activeOpacity={0.75}>
+        <View style={styles.shortcutIcon}>{icon}</View>
+        <Text style={styles.shortcutText}>{label}</Text>
     </TouchableOpacity>
 );
 
 export default function DashboardScreen({ navigation }) {
+    const { orders, clients, vehiculos, citas } = useData();
+
+    const activeOrders = (orders || []).filter(o =>
+        o.Estado?.toLowerCase().includes('pendiente') ||
+        o.Estado?.toLowerCase().includes('proceso')
+    ).length;
+
     return (
-        <View style={{ flex: 1, backgroundColor: Colors.background }}>
+        <View style={styles.screen}>
             <CustomHeader title="INICIO" />
-            <ScrollView contentContainerStyle={styles.container}>
-                <View style={styles.grid}>
-                    <DashboardCard
-                        title="SERVICIOS"
-                        icon={<ClipboardList size={100} color="#000" />}
-                        color="#FFF"
-                        onPress={() => navigation.navigate('Services')}
-                    />
-                    <DashboardCard
-                        title="CLIENTES"
-                        icon={<Users size={100} color="#000" />}
-                        color="#FFF"
-                        onPress={() => navigation.navigate('Clients')}
-                    />
-                    <DashboardCard
-                        title="ORDENES"
-                        icon={<ClipboardList size={100} color="#3B5998" />}
-                        color="#FFF"
+            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+                {/* Saludo */}
+                <View style={styles.greet}>
+                    <Text style={styles.greetTitle}>¡Buen día!</Text>
+                    <Text style={styles.greetSub}>Resumen de tu taller</Text>
+                </View>
+
+                {/* Tarjetas de estadísticas */}
+                <View style={styles.statsGrid}>
+                    <StatCard
+                        title="Órdenes activas"
+                        count={activeOrders}
+                        icon={<ClipboardList size={26} color={Colors.primary} />}
                         onPress={() => navigation.navigate('Orders')}
                     />
-                    <DashboardCard
-                        title="FACTURAS"
-                        icon={<FileCheck size={100} color="#000" />}
-                        color="#FFF"
-                        onPress={() => navigation.navigate('Invoices')}
+                    <StatCard
+                        title="Clientes"
+                        count={clients?.length}
+                        icon={<Users size={26} color="#E53935" />}
+                        onPress={() => navigation.navigate('ClientList')}
                     />
-                    <DashboardCard
-                        title="GARAGE"
-                        icon={<Car size={100} color="#FB8C00" />}
-                        color="#FFF"
-                        onPress={() => navigation.navigate('Garage')}
+                    <StatCard
+                        title="Vehículos"
+                        count={vehiculos?.length}
+                        icon={<Car size={26} color="#4CAF50" />}
+                        onPress={() => navigation.navigate('VehicleList')}
                     />
-                    <DashboardCard
-                        title="CITAS"
-                        icon={<ClipboardList size={100} color="#4CAF50" />}
-                        color="#FFF"
-                        onPress={() => navigation.navigate('Citas')}
+                    <StatCard
+                        title="Citas"
+                        count={citas?.length}
+                        icon={<Calendar size={26} color="#FF9800" />}
+                        onPress={() => navigation.navigate('AppointmentList')}
                     />
                 </View>
+
+                {/* Accesos rápidos */}
+                <Text style={styles.sectionTitle}>Accesos rápidos</Text>
+                <View style={styles.shortcuts}>
+                    <ShortcutBtn
+                        label="Garage"
+                        icon={<Warehouse size={28} color={Colors.primary} />}
+                        onPress={() => navigation.navigate('Garage')}
+                    />
+                    <ShortcutBtn
+                        label="Facturación"
+                        icon={<FileCheck size={28} color="#E53935" />}
+                        onPress={() => navigation.navigate('Billing')}
+                    />
+                    <ShortcutBtn
+                        label="Servicios"
+                        icon={<Wrench size={28} color="#4CAF50" />}
+                        onPress={() => navigation.navigate('Services')}
+                    />
+                    <ShortcutBtn
+                        label="Buscar"
+                        icon={<Search size={28} color="#FF9800" />}
+                        onPress={() => navigation.navigate('VehicleSearch')}
+                    />
+                </View>
+
             </ScrollView>
-            <FAB onPress={() => navigation.navigate('Form', {
-                title: 'Cita',
-                dataKey: 'citas',
-                fields: ['ID_Cita', 'Tipo de cita', 'Turno', 'Agendado', 'Cliente', 'Fecha ']
-            })} />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        padding: 12,
+    screen: {
+        flex: 1,
+        backgroundColor: Colors.background,
     },
-    grid: {
+    scroll: {
+        padding: 16,
+        paddingBottom: 100,
+    },
+    greet: {
+        marginBottom: 20,
+        marginTop: 8,
+    },
+    greetTitle: {
+        color: Colors.text,
+        fontSize: 26,
+        fontWeight: 'bold',
+    },
+    greetSub: {
+        color: Colors.textSecondary,
+        fontSize: 14,
+        marginTop: 4,
+    },
+
+    /* Stats grid */
+    statsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
+        marginBottom: 28,
     },
-    card: {
-        width: '48%',
-        backgroundColor: '#FFF',
-        borderRadius: 8,
+    statCard: {
+        width: CARD_WIDTH,
+        backgroundColor: Colors.card,
+        borderRadius: 16,
+        padding: 18,
         marginBottom: 16,
-        overflow: 'hidden',
-        aspectRatio: 0.85,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        alignItems: 'flex-start',
     },
-    cardHeader: {
-        flex: 3,
-        backgroundColor: '#FFF',
+    statIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        backgroundColor: 'rgba(59,89,152,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 10,
+        marginBottom: 12,
     },
-    cardFooter: {
-        height: 40,
-        backgroundColor: '#222',
-        justifyContent: 'center',
-        paddingHorizontal: 12,
-    },
-    cardTitle: {
-        color: '#FFF',
-        fontSize: 14,
+    statCount: {
+        color: Colors.text,
+        fontSize: 28,
         fontWeight: 'bold',
+        lineHeight: 32,
+    },
+    statLabel: {
+        color: Colors.textSecondary,
+        fontSize: 12,
+        marginTop: 4,
+    },
+
+    /* Shortcuts */
+    sectionTitle: {
+        color: Colors.text,
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: 14,
         textTransform: 'uppercase',
+        letterSpacing: 0.8,
+    },
+    shortcuts: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    shortcut: {
+        flex: 1,
+        backgroundColor: Colors.card,
+        borderRadius: 14,
+        paddingVertical: 16,
+        paddingHorizontal: 8,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: Colors.border,
+        marginHorizontal: 4,
+    },
+    shortcutIcon: {
+        marginBottom: 8,
+    },
+    shortcutText: {
+        color: Colors.textSecondary,
+        fontSize: 11,
+        textAlign: 'center',
+        fontWeight: '500',
     },
 });

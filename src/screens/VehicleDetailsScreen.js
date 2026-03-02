@@ -20,13 +20,13 @@ export default function VehicleDetailsScreen({ route }) {
                 <View style={styles.headerSection}>
                     <Text style={styles.header}>{vehicle.Marca} {vehicle.Modelo}</Text>
                     <Text style={styles.subHeader}>
-                        {vehicle['Año de Fabricacion'] || vehicle.Año || ''} {vehicle.Matricula ? `• ${vehicle.Matricula}` : ''}
+                        {vehicle['Año de Fabricacion'] || vehicle.Año || ''} {(vehicle.Matricula) ? `• ${vehicle.Matricula}` : ''}
                     </Text>
                 </View>
 
                 <View style={styles.section}>
                     {Object.entries(vehicle).map(([key, value]) => {
-                        if (['id', 'Marca', 'Modelo', 'Matricula'].includes(key)) return null;
+                        if (['id', 'Marca', 'Modelo', 'Placa', 'Matricula'].includes(key)) return null;
                         if (!value) return null;
                         return <DetailItem key={key} label={key} value={value.toString()} />;
                     })}
