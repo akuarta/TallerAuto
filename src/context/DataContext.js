@@ -23,6 +23,7 @@ export const DataProvider = ({ children }) => {
     citas: [],
     herramientas: [],
     vehiculos: [], // Añadido explícitamente
+    rescates: [],
   });
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -57,13 +58,23 @@ export const DataProvider = ({ children }) => {
 
         // Formatear fechas ISO feas ("2025-01-21T04:00:00.000Z" -> "2025-01-21")
         Object.keys(normalizedItem).forEach(k => {
-          if (typeof normalizedItem[k] === 'string' && normalizedItem[k].match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
-            // Dividir y extraer solo la fecha (YYYY-MM-DD)
-            const datePart = normalizedItem[k].split('T')[0];
-            // Si quieres formato DD/MM/YYYY: 
-            // const [y, m, d] = datePart.split('-'); 
-            // normalizedItem[k] = `${d}/${m}/${y}`;
-            normalizedItem[k] = datePart;
+          const val = normalizedItem[k];
+          if (typeof val === 'string') {
+            // Caso 1: ISO Date con tiempo (YYYY-MM-DDTHH:mm...)
+            if (val.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+              if (val.includes('1899-12-30')) {
+                // Es solo una Hora que Google Sheets mandó con la fecha base
+                const timeMatch = val.match(/T(\d{2}:\d{2})/);
+                normalizedItem[k] = timeMatch ? timeMatch[1] : val;
+              } else {
+                // Es una fecha real
+                normalizedItem[k] = val.split('T')[0];
+              }
+            }
+            // Caso 2: Solo la fecha base de Excel/Google para "cero"
+            else if (val.includes('1899-12-30')) {
+              normalizedItem[k] = ''; // O podrías poner '00:00' si sabes que es hora
+            }
           }
         });
 
@@ -89,6 +100,7 @@ export const DataProvider = ({ children }) => {
         herramientas: normalize(result.Herramientas),
         usuarios: normalize(result.USUARIOS),
         vehiculos: normalize(result.VEHICULOS),
+        rescates: normalize(result.RESCATES || result.rescates),
       });
       setLoading(false);
     } catch (error) {
@@ -106,7 +118,8 @@ export const DataProvider = ({ children }) => {
     'productos': 'PRODUCTOS',
     'servicios': 'SERVICIOS',
     'entradas': 'ENTRADA',
-    'tecnicos': 'TECNICOS'
+    'tecnicos': 'TECNICOS',
+    'rescates': 'RESCATES'
   };
 
   const syncToRemote = async (action, dataKey, payload) => {
@@ -204,6 +217,26 @@ export const DataProvider = ({ children }) => {
       itemToSync.id = (maxId + 1).toString();
     }
 
+    // Lógica de Reputación para Facturas
+    if (dataKey === 'invoices') {
+      const total = parseFloat(itemToSync.Total || 0);
+      const pagado = parseFloat(itemToSync.MontoPagado || 0);
+
+      const diferencia = pagado - total;
+      itemToSync.DiferenciaPago = diferencia;
+
+      if (diferencia > 0) {
+        itemToSync.Propina = diferencia;
+        itemToSync.Regateo = 0;
+      } else if (diferencia < 0) {
+        itemToSync.Regateo = Math.abs(diferencia);
+        itemToSync.Propina = 0;
+      } else {
+        itemToSync.Propina = 0;
+        itemToSync.Regateo = 0;
+      }
+    }
+
     // Actualizamos localmente
     setData(prevData => {
       const list = prevData[dataKey] || [];
@@ -216,16 +249,44 @@ export const DataProvider = ({ children }) => {
 
   // Función para actualizar un registro existente
   const updateItem = async (dataKey, itemId, updatedFields) => {
+    let finalFields = { ...updatedFields };
+
+    // Lógica de Reputación para Facturas
+    if (dataKey === 'invoices') {
+      const total = parseFloat(finalFields.Total || 0);
+      const pagado = parseFloat(finalFields.MontoPagado || 0);
+      const descuento = parseFloat(finalFields.Descuentos || 0);
+
+      // Solo aplica si NO hay descuento registrado (o si el descuento es 0)
+      // Aunque el usuario dice "si NO hay descuento registrado", usualmente se refiere a que 
+      // si el pago coincide con el total DESPUÉS del descuento, es 0 diferencia.
+      // Pero su ejemplo dice: Total final 4500, Pagado 4500 -> Diferencia 0.
+
+      const diferencia = pagado - total;
+      finalFields.DiferenciaPago = diferencia;
+
+      if (diferencia > 0) {
+        finalFields.Propina = diferencia;
+        finalFields.Regateo = 0;
+      } else if (diferencia < 0) {
+        finalFields.Regateo = Math.abs(diferencia);
+        finalFields.Propina = 0;
+      } else {
+        finalFields.Propina = 0;
+        finalFields.Regateo = 0;
+      }
+    }
+
     setData(prevData => {
       const list = prevData[dataKey] || [];
       const updatedList = list.map(item =>
-        item.id === itemId ? { ...item, ...updatedFields } : item
+        item.id === itemId ? { ...item, ...finalFields } : item
       );
       return { ...prevData, [dataKey]: updatedList };
     });
 
     // Sincronizamos y retornamos resultado
-    return await syncToRemote('UPDATE', dataKey, { id: itemId, ...updatedFields });
+    return await syncToRemote('UPDATE', dataKey, { id: itemId, ...finalFields });
   };
 
   // Función para obtener vehículos de un cliente específico
@@ -261,6 +322,54 @@ export const DataProvider = ({ children }) => {
     );
   };
 
+  // Función para calcular el Índice de Cliente (Reputación)
+  const getClientReputation = (clienteNombre) => {
+    const invoices = data.invoices || [];
+    const clientInvoices = invoices.filter(inv =>
+      inv.Cliente?.toLowerCase() === clienteNombre?.toLowerCase() &&
+      (inv.Estado?.toLowerCase().includes('pagada') || inv.Estado?.toLowerCase().includes('pagado'))
+    );
+
+    let totalPropinas = 0;
+    let totalRegateos = 0;
+    let puntos = 100; // Empezamos con una base de 100 puntos (reputación neutra/buena)
+
+    clientInvoices.forEach(inv => {
+      const propina = parseFloat(inv.Propina || 0);
+      const regateo = parseFloat(inv.Regateo || 0);
+
+      totalPropinas += propina;
+      totalRegateos += regateo;
+
+      // +1 punto por cada 100 pesos de propina
+      puntos += (propina / 100);
+      // -1 punto por cada 100 pesos de regateo
+      puntos -= (regateo / 100);
+    });
+
+    // Calcular estrellas (1-5) basadas en puntos
+    // 100 puntos = 3 estrellas (base)
+    // > 120 = 4 estrellas
+    // > 150 = 5 estrellas
+    // < 80 = 2 estrellas
+    // < 50 = 1 estrella
+    let estrellas = 3;
+    if (puntos >= 150) estrellas = 5;
+    else if (puntos >= 120) estrellas = 4;
+    else if (puntos >= 90) estrellas = 3;
+    else if (puntos >= 70) estrellas = 2;
+    else estrellas = 1;
+
+    return {
+      puntos: Math.round(puntos),
+      estrellas,
+      totalPropinas,
+      totalRegateos,
+      visitas: clientInvoices.length,
+      frecuenciaRegateo: clientInvoices.filter(inv => parseFloat(inv.Regateo || 0) > 0).length
+    };
+  };
+
   return (
     <DataContext.Provider value={{
       ...data,
@@ -273,7 +382,8 @@ export const DataProvider = ({ children }) => {
       getVehiculosByCliente,
       getOrdenesByCliente,
       getOrdenesByVehiculo,
-      getCitasByCliente
+      getCitasByCliente,
+      getClientReputation
     }}>
       {children}
     </DataContext.Provider>

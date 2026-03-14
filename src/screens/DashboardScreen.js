@@ -5,6 +5,7 @@ import { Colors } from '../constants';
 import { ClipboardList, Car, Users, FileCheck, Warehouse, Calendar, Wrench, Search } from 'lucide-react-native';
 import { CustomHeader } from '../components/CustomHeader';
 import { useData } from '../context/DataContext';
+import { FAB } from '../components/FAB';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -97,6 +98,15 @@ export default function DashboardScreen({ navigation }) {
                 </View>
 
             </ScrollView>
+            
+            <FAB 
+                onPress={() => navigation.navigate('Form', { 
+                    title: 'Rescate', 
+                    dataKey: 'rescates', 
+                    fields: ['IdRescate', 'Cliente', 'Matricula', 'Fecha', 'Hora', 'Punto de Partida', 'Lugar del Rescate', 'Estado', 'Trayectoria'],
+                    prefill: { 'Punto de Partida': 'Taller' }
+                })} 
+            />
         </View>
     );
 }

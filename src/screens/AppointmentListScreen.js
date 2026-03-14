@@ -62,7 +62,7 @@ export default function AppointmentListScreen({ navigation }) {
     const fields = ['ID_Cita', 'Fecha', 'Hora', 'Cliente', 'Matricula', 'Tipo de cita', 'Turno', 'Agendado', 'Estado', 'Notas'];
 
     const getActualMatricula = (matriculaId) => {
-        if (!matriculaId) return 'P-456XYZ';
+        if (!matriculaId) return 'S/M';
         const vehiculo = vehiculos?.find(v => v['ID Vehiculo'] === matriculaId || v.id === matriculaId || v.Matricula === matriculaId);
         return vehiculo?.Matricula ? vehiculo.Matricula : matriculaId;
     };

@@ -1,5 +1,6 @@
 import 'react-native-gesture-handler';
 import React from 'react';
+import { Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -31,14 +32,26 @@ import InvoiceListScreen from './src/screens/InvoiceListScreen';
 import VehicleManagerScreen from './src/screens/VehicleManagerScreen';
 import TechnicianListScreen from './src/screens/TechnicianListScreen';
 import AppointmentListScreen from './src/screens/AppointmentListScreen';
+import RescueScreen from './src/screens/RescueScreen';
 
-import { Home, ClipboardList, List, Wrench, LayoutDashboard, Search } from 'lucide-react-native';
+import { Home, ClipboardList, List, Wrench, LayoutDashboard, Search, MapPin } from 'lucide-react-native';
 import SplashScreen from './src/screens/SplashScreen';
 import { useData } from './src/context/DataContext';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const Drawer = createDrawerNavigator();
+
+// Silenciar la molesta advertencia de React Navigation en Web (falso positivo)
+if (Platform.OS === 'web') {
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    if (typeof args[0] === 'string' && args[0].includes('Blocked aria-hidden')) {
+      return;
+    }
+    originalConsoleError(...args);
+  };
+}
 
 function VehicleReferenceStack() {
   return (
@@ -110,6 +123,14 @@ function MainTabs() {
         options={{
           tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={24} />,
           tabBarLabel: 'GARAGE'
+        }}
+      />
+      <Tab.Screen
+        name="Rescue"
+        component={RescueScreen}
+        options={{
+          tabBarIcon: ({ color }) => <MapPin color={color} size={24} />,
+          tabBarLabel: 'RESCATE'
         }}
       />
       <Tab.Screen

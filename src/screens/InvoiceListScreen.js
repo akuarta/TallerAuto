@@ -14,10 +14,14 @@ export default function InvoiceListScreen({ navigation }) {
     const [filterStatus, setFilterStatus] = useState('Todos');
 
     // Campos para factura
-    const fields = ['Factura', 'IdOrden', 'Cliente', 'Detalles del vehiculo', 'Total', 'Impuestos', 'Subtotal', 'Descuentos', 'Estado'];
+    const fields = ['Factura', 'IdOrden', 'Cliente', 'Detalles del vehiculo', 'Total', 'Impuestos', 'Subtotal', 'Descuentos', 'MontoPagado', 'Estado'];
 
     const handleMarkAsPaid = (invoice) => {
-        updateItem('invoices', invoice.id, { Estado: 'Pagada' });
+        const total = parseFloat(invoice.Total || 0);
+        updateItem('invoices', invoice.id, {
+            Estado: 'Pagada',
+            MontoPagado: invoice.MontoPagado || total // Por defecto sugerimos el total si está vacío
+        });
         Alert.alert("Éxito", "Factura marcada como pagada");
     };
 
@@ -120,9 +124,21 @@ export default function InvoiceListScreen({ navigation }) {
                                 {item['Detalles del vehiculo'] && (
                                     <Text style={styles.vehicleText}>{item['Detalles del vehiculo']}</Text>
                                 )}
-                                {item.IdOrden && (
-                                    <Text style={styles.orderText}>Orden: {item.IdOrden}</Text>
-                                )}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                    {item.IdOrden && (
+                                        <Text style={styles.orderText}>Orden: {item.IdOrden}</Text>
+                                    )}
+                                    {parseFloat(item.Propina || 0) > 0 && (
+                                        <Text style={[styles.reputationBadge, { color: '#32CD32', backgroundColor: '#32CD3220' }]}>
+                                            + Propina: ${item.Propina}
+                                        </Text>
+                                    )}
+                                    {parseFloat(item.Regateo || 0) > 0 && (
+                                        <Text style={[styles.reputationBadge, { color: '#FF6347', backgroundColor: '#FF634720' }]}>
+                                            - Regateo: ${item.Regateo}
+                                        </Text>
+                                    )}
+                                </View>
                             </View>
                             <View style={styles.amountContainer}>
                                 <Text style={styles.amount}>${item.Total || '0'}</Text>
@@ -220,4 +236,12 @@ const styles = StyleSheet.create({
     statusText: { fontSize: 11, fontWeight: '500', marginTop: 2 },
     actionIcons: { flexDirection: 'row', alignItems: 'center', marginLeft: 8 },
     iconBtn: { padding: 8, marginLeft: 2 },
+    reputationBadge: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        marginLeft: 8,
+    }
 });

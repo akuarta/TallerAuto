@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Image } from 'react-native';
 import { Colors } from '../constants';
 import { useData } from '../context/DataContext';
-import { Search, ChevronRight, ChevronLeft, Trash2, Edit2 } from 'lucide-react-native';
+import { Search, ChevronRight, ChevronLeft, Trash2, Edit2, Plus } from 'lucide-react-native';
 import { FAB } from '../components/FAB';
 import { CustomHeader } from '../components/CustomHeader';
 
@@ -38,7 +38,7 @@ export default function VehicleSearchScreen({ navigation }) {
             navigation.navigate('Form', {
                 title: 'Modelo',
                 dataKey: 'catalog',
-                item: { Marca: selectedBrand, ID_Marca: idMarca },
+                prefill: { Marca: selectedBrand, ID_Marca: idMarca },
                 fields: ['ID_Marca', 'ID_Modelo', 'Marca', 'Modelo', 'Slug_Modelo']
             });
         } else {
@@ -113,17 +113,55 @@ export default function VehicleSearchScreen({ navigation }) {
                                 setSearch('');
                             }}
                         >
-                            <View style={styles.brandInfo}>
-                                <View style={styles.logoContainer}>
-                                    <Image
-                                        source={{ uri: getBrandLogo(item) }}
-                                        style={styles.brandLogo}
-                                        resizeMode="contain"
-                                    />
+                            <View style={styles.brandContent}>
+                                <TouchableOpacity
+                                    style={styles.brandInfo}
+                                    onPress={() => {
+                                        setSelectedBrand(item);
+                                        setSearch('');
+                                    }}
+                                >
+                                    <View style={styles.logoContainer}>
+                                        <Image
+                                            source={{ uri: getBrandLogo(item) }}
+                                            style={styles.brandLogo}
+                                            resizeMode="contain"
+                                        />
+                                    </View>
+                                    <Text style={styles.brandText}>{item}</Text>
+                                </TouchableOpacity>
+                                <View style={styles.actionIcons}>
+                                    <TouchableOpacity
+                                        style={styles.iconBtn}
+                                        onPress={() => {
+                                            const brandInfo = catalog.find(b => b.Marca === item);
+                                            navigation.navigate('Form', {
+                                                title: 'Modelo',
+                                                dataKey: 'catalog',
+                                                prefill: { Marca: item, ID_Marca: brandInfo?.ID_Marca || '' },
+                                                fields: ['ID_Marca', 'ID_Modelo', 'Marca', 'Modelo', 'Slug_Modelo']
+                                            });
+                                        }}
+                                    >
+                                        <Plus size={20} color={Colors.primary} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.iconBtn}
+                                        onPress={() => {
+                                            const brandInfo = catalog.find(b => b.Marca === item);
+                                            navigation.navigate('Form', {
+                                                title: 'Marca',
+                                                dataKey: 'catalog',
+                                                item: brandInfo || { Marca: item },
+                                                fields: ['Marca', 'ID_Marca']
+                                            });
+                                        }}
+                                    >
+                                        <Edit2 size={18} color={Colors.textSecondary} />
+                                    </TouchableOpacity>
+                                    <ChevronRight size={18} color={Colors.textSecondary} />
                                 </View>
-                                <Text style={styles.brandText}>{item}</Text>
                             </View>
-                            <ChevronRight size={18} color={Colors.textSecondary} />
                         </TouchableOpacity>
                     ))
                 )}
@@ -146,10 +184,12 @@ const styles = StyleSheet.create({
     scrollView: { flex: 1 },
     scrollContent: { paddingBottom: 100, paddingHorizontal: 16 },
     brandItem: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border,
+        paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: Colors.border,
     },
-    brandInfo: { flexDirection: 'row', alignItems: 'center' },
+    brandContent: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    },
+    brandInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
     logoContainer: {
         width: 40, height: 40, borderRadius: 8, backgroundColor: 'white',
         justifyContent: 'center', alignItems: 'center', marginRight: 12, padding: 4,

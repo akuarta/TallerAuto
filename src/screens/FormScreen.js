@@ -3,12 +3,25 @@ import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert,
 import { Colors } from '../constants';
 import { CustomHeader } from '../components/CustomHeader';
 import { useData } from '../context/DataContext';
-import { Save, X, Lock, Trash2, Calendar, Camera } from 'lucide-react-native';
+import { Save, X, Lock, Trash2, Calendar, Camera, Plus, Phone, Search as SearchIcon, Star, AlertTriangle, MapPin } from 'lucide-react-native';
+import * as Contacts from 'expo-contacts';
+import * as Location from 'expo-location';
+
+let MapView, Marker;
+if (Platform.OS !== 'web') {
+    const Maps = require('react-native-maps');
+    MapView = Maps.default;
+    Marker = Maps.Marker;
+}
+
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Xv37q0S-2pU3b_b1qN5v9fU8rN6-F6N6/edit?usp=sharing";
+const GOOGLE_MAPS_API_KEY = "AIzaSyBhMnl-cxCpsL97ukncJA-MTJugjBrkpug"; // PEGA TU API KEY AQUÍ PARA MAPAS PROFESIONALES
 
 export default function FormScreen({ route, navigation }) {
     const { title, dataKey, fields, item, prefill } = route.params || {};
     const { deleteItemByField, addItem, updateItem, syncing, ...allData } = useData();
     const [formData, setFormData] = useState(item || prefill || {});
+    const [initialData, setInitialData] = useState(item || prefill || {}); // Para detectar cambios reales
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [pickerVisible, setPickerVisible] = useState(false);
     const [pickerConfig, setPickerConfig] = useState(null); // { field, data, labelField }
@@ -17,9 +30,30 @@ export default function FormScreen({ route, navigation }) {
     const [tempMonth, setTempMonth] = useState('01');
     const [tempYear, setTempYear] = useState(new Date().getFullYear().toString());
 
-    // Es edición solo si tiene datos completos (no solo ID_Marca para modelos)
-    const isEdit = item && Object.keys(item).length > 0 &&
-        !(Object.keys(item).length <= 2 && item.ID_Marca && !item.ID_Modelo && !item.Marca);
+    // Es edición si tiene un ID (lo que significa que ya existe en la base de datos)
+    const isEdit = !!(item && item.id);
+
+    // Helper para alertas compatibles con Web
+    const showAlert = (title, message, buttons) => {
+        if (Platform.OS === 'web') {
+            if (buttons && buttons.length > 1) {
+                const confirmed = window.confirm(`${title}\n\n${message}`);
+                if (confirmed) {
+                    // Ejecutar la acción del botón positivo (el que no es cancel)
+                    const confirmBtn = buttons.find(b => b.style !== 'cancel') || buttons[buttons.length - 1];
+                    if (confirmBtn && confirmBtn.onPress) confirmBtn.onPress();
+                } else {
+                    // Ejecutar la acción de cancelar si existe
+                    const cancelBtn = buttons.find(b => b.style === 'cancel');
+                    if (cancelBtn && cancelBtn.onPress) cancelBtn.onPress();
+                }
+            } else {
+                alert(`${title}\n\n${message}`);
+            }
+        } else {
+            Alert.alert(title, message, buttons);
+        }
+    };
 
     const goBackToList = () => {
         const mapping = {
@@ -62,7 +96,7 @@ export default function FormScreen({ route, navigation }) {
         if (titleLower.includes('marca')) return '';
         if (titleLower.includes('modelo')) return '';
         if (titleLower.includes('factura')) return '';
-        if (titleLower.includes('cita')) return '';
+        if (titleLower.includes('cita')) return 'CIT';
         // Para vehículos, usamos 'HV' como prefijo
         if (titleLower.includes('vehículo') || titleLower.includes('vehiculo')) return 'HV';
         if (titleLower.includes('producto')) return 'HP';
@@ -140,6 +174,16 @@ export default function FormScreen({ route, navigation }) {
         return formatted;
     };
 
+    // Función para formatear la hora como HH:mm
+    const formatTime = (text) => {
+        const cleaned = text.replace(/\D/g, '');
+        let formatted = cleaned;
+        if (cleaned.length > 2) {
+            formatted = cleaned.slice(0, 2) + ':' + cleaned.slice(2, 4);
+        }
+        return formatted;
+    };
+
     // Función para traducir colores de español a inglés (para CSS)
     const translateColor = (colorName) => {
         if (!colorName) return '';
@@ -156,8 +200,381 @@ export default function FormScreen({ route, navigation }) {
         return colorMap[lower] || lower;
     };
 
+    // Función para importar desde contactos
+    const importFromContacts = async () => {
+        try {
+            const { status } = await Contacts.requestPermissionsAsync();
+            if (status === 'granted') {
+                const result = await Contacts.presentContactPickerAsync();
+                if (result && !result.cancelled) {
+                    const contact = result;
+                    const name = contact.name || '';
+                    const phone = contact.phoneNumbers && contact.phoneNumbers.length > 0
+                        ? contact.phoneNumbers[0].number
+                        : '';
+
+                    setFormData(prev => ({
+                        ...prev,
+                        Nombre: name,
+                        Telefono: phone
+                    }));
+                }
+            } else {
+                showAlert("Permiso Denegado", "No se puede acceder a los contactos sin permiso.");
+            }
+        } catch (error) {
+            console.error(error);
+            showAlert("Error", "No se pudo abrir la agenda de contactos.");
+        }
+    };
+
+    const [mapModalVisible, setMapModalVisible] = useState(false);
+    const [mapCoords, setMapCoords] = useState(null);
+    const [mapAddress, setMapAddress] = useState("");
+    const [mapField, setMapField] = useState(null);
+    const [mapSearchQuery, setMapSearchQuery] = useState("");
+    const [mapSearching, setMapSearching] = useState(false);
+    const [mapSuggestions, setMapSuggestions] = useState([]);
+    const [initialMapCoords, setInitialMapCoords] = useState(null);
+
+    const reverseGeocode = async (coords) => {
+        try {
+            if (GOOGLE_MAPS_API_KEY) {
+                const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${coords.latitude},${coords.longitude}&key=${GOOGLE_MAPS_API_KEY}&language=es`);
+                const data = await response.json();
+                if (data.status === 'OK' && data.results.length > 0) {
+                    setMapAddress(data.results[0].formatted_address);
+                    return;
+                }
+            }
+            
+            // Fallback a Nominatim
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}&addressdetails=1`);
+            const data = await response.json();
+            
+            if (data && data.display_name) {
+                const parts = data.display_name.split(',');
+                const shortAddress = parts.slice(0, 3).join(',').trim();
+                setMapAddress(shortAddress);
+            } else {
+                setMapAddress(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+            }
+        } catch (error) {
+            console.log("Error reverseGeocode", error);
+            setMapAddress(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+        }
+    };
+
+    // Buscar sugerencias (Google Maps si hay KEY, sino Nominatim)
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (mapSearchQuery.length < 3) {
+                setMapSuggestions([]);
+                return;
+            }
+            try {
+                if (GOOGLE_MAPS_API_KEY) {
+                    // Usar Geocoding API de Google para buscar (sesgado a República Dominicana)
+                    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(mapSearchQuery)}&key=${GOOGLE_MAPS_API_KEY}&components=country:DO&language=es`);
+                    const data = await response.json();
+                    if (data.status === 'OK') {
+                        const formatted = data.results.map(r => ({
+                            display_name: r.formatted_address,
+                            lat: r.geometry.location.lat,
+                            lon: r.geometry.location.lng,
+                            isGoogle: true
+                        }));
+                        setMapSuggestions(formatted);
+                        return;
+                    }
+                }
+
+                // Fallback Nominatim
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(mapSearchQuery)}&addressdetails=1&limit=6&viewbox=-72,20,-68,17&countrycodes=do`);
+                const data = await response.json();
+                setMapSuggestions(data);
+            } catch (error) {
+                console.log("Error buscando sugerencias", error);
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestions, 500);
+        return () => clearTimeout(timer);
+    }, [mapSearchQuery]);
+
+    const handleSelectSuggestion = (suggestion) => {
+        const newCoords = {
+            latitude: parseFloat(suggestion.lat),
+            longitude: parseFloat(suggestion.lon)
+        };
+        setMapCoords(newCoords);
+        setMapAddress(suggestion.display_name);
+        setMapSearchQuery(suggestion.display_name);
+        setMapSuggestions([]);
+
+        if (Platform.OS === 'web') {
+            const iframe = document.getElementById('map-iframe');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage(JSON.stringify({
+                    type: 'set_view',
+                    lat: newCoords.latitude,
+                    lng: newCoords.longitude
+                }), '*');
+            }
+        }
+    };
+
+    // Memoizar el iframe para que NO se resetee el zoom al cambiar otros estados
+    const memoizedWebMap = React.useMemo(() => {
+        if (Platform.OS !== 'web' || !initialMapCoords) return null;
+
+        // Estilo Oscuro Premium para Google Maps
+        const googleMapsDarkStyle = [
+            { "elementType": "geometry", "stylers": [{ "color": "#242f3e" }] },
+            { "elementType": "labels.text.stroke", "stylers": [{ "color": "#242f3e" }] },
+            { "elementType": "labels.text.fill", "stylers": [{ "color": "#746855" }] },
+            { "featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
+            { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#d59563" }] },
+            { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#38414e" }] },
+            { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#212a37" }] },
+            { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#9ca5b3" }] },
+            { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#17263c" }] }
+        ];
+
+        if (GOOGLE_MAPS_API_KEY) {
+            return (
+                <iframe
+                    id="map-iframe"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    srcDoc={`
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                            <script src="https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}"></script>
+                            <style>
+                                body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #121212; }
+                                .center-marker {
+                                    position: absolute;
+                                    top: 50%;
+                                    left: 50%;
+                                    transform: translate(-50%, -100%);
+                                    z-index: 1000;
+                                    pointer-events: none;
+                                    width: 44px;
+                                    height: 44px;
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div id="map"></div>
+                            <svg class="center-marker" viewBox="0 0 24 24" fill="none" stroke="#E53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                            <script>
+                                var map;
+                                function initMap() {
+                                    map = new google.maps.Map(document.getElementById('map'), {
+                                        center: {lat: ${initialMapCoords.latitude}, lng: ${initialMapCoords.longitude}},
+                                        zoom: 16,
+                                        disableDefaultUI: false,
+                                        zoomControl: true,
+                                        styles: ${JSON.stringify(googleMapsDarkStyle)}
+                                    });
+
+                                    map.addListener('idle', function() {
+                                        var center = map.getCenter();
+                                        window.parent.postMessage(JSON.stringify({ 
+                                            type: 'map_pick', 
+                                            lat: center.lat(), 
+                                            lng: center.lng() 
+                                        }), '*');
+                                    });
+                                }
+                                initMap();
+
+                                window.addEventListener('message', function(event) {
+                                    try {
+                                        var data = JSON.parse(event.data);
+                                        if (data.type === 'set_view') {
+                                            map.setCenter({lat: data.lat, lng: data.lng});
+                                            map.setZoom(17);
+                                        }
+                                    } catch(e) {}
+                                });
+                            </script>
+                        </body>
+                        </html>
+                    `}
+                />
+            );
+        }
+
+        // Fallback a Leaflet (Gratis)
+        return (
+            <iframe
+                id="map-iframe"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                srcDoc={`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                    <style>
+                        body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #121212; }
+                        #map { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+                        .leaflet-control-zoom { filter: invert(0); }
+                        .center-marker {
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -100%);
+                            z-index: 1000;
+                            pointer-events: none;
+                            width: 40px;
+                            height: 40px;
+                            filter: invert(100%) hue-rotate(180deg);
+                        }
+                    </style>
+                    </head>
+                    <body>
+                        <div id="map"></div>
+                        <svg class="center-marker" viewBox="0 0 24 24" fill="none" stroke="#E53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <script>
+                            var map = L.map('map', {zoomControl: true}).setView([${initialMapCoords.latitude}, ${initialMapCoords.longitude}], 16);
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                            
+                            map.on('moveend', function() {
+                                var center = map.getCenter();
+                                window.parent.postMessage(JSON.stringify({ type: 'map_pick', lat: center.lat, lng: center.lng }), '*');
+                            });
+
+                            window.addEventListener('message', function(event) {
+                                try {
+                                    var data = JSON.parse(event.data);
+                                    if (data.type === 'set_view') {
+                                        map.setView([data.lat, data.lng], 16);
+                                    }
+                                } catch(e) {}
+                            });
+                        </script>
+                    </body>
+                    </html>
+                `}
+            />
+        );
+    }, [initialMapCoords]);
+
+    const handleSearchAddress = async () => {
+        if (!mapSearchQuery.trim()) return;
+        setMapSearching(true);
+        try {
+            const result = await Location.geocodeAsync(mapSearchQuery);
+            if (result && result.length > 0) {
+                const newCoords = { latitude: result[0].latitude, longitude: result[0].longitude };
+                setMapCoords(newCoords);
+                reverseGeocode(newCoords);
+                if (Platform.OS === 'web') {
+                    const iframe = document.getElementById('map-iframe');
+                    if (iframe && iframe.contentWindow) {
+                        iframe.contentWindow.postMessage(JSON.stringify({
+                            type: 'set_view',
+                            lat: newCoords.latitude,
+                            lng: newCoords.longitude
+                        }), '*');
+                    }
+                }
+            }
+        } catch (error) { }
+        setMapSearching(false);
+    };
+
+    useEffect(() => {
+        if (Platform.OS === 'web') {
+            const handleMessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'map_pick') {
+                        const newCoords = { latitude: data.lat, longitude: data.lng };
+                        setMapCoords(newCoords);
+                        reverseGeocode(newCoords);
+                    }
+                } catch (e) { }
+            };
+            window.addEventListener('message', handleMessage);
+            return () => window.removeEventListener('message', handleMessage);
+        }
+    }, []);
+
+    // Función para abrir modal interactivo de mapa
+    const openMapForField = async (field) => {
+        setMapField(field);
+        let initialLat = 18.4861;
+        let initialLng = -69.9312;
+
+        try {
+            const currentVal = formData[field];
+            if (currentVal && currentVal.includes(',')) {
+                const parts = currentVal.split(',');
+                const maybeLat = parseFloat(parts[0]);
+                const maybeLng = parseFloat(parts[1]);
+                if (!isNaN(maybeLat) && !isNaN(maybeLng)) {
+                    initialLat = maybeLat;
+                    initialLng = maybeLng;
+                }
+            } else {
+                let { status } = await Location.requestForegroundPermissionsAsync();
+                if (status === 'granted') {
+                    let loc = await Location.getCurrentPositionAsync({});
+                    initialLat = loc.coords.latitude;
+                    initialLng = loc.coords.longitude;
+                }
+            }
+        } catch (error) {
+            console.log("Error obteniendo ubicacion incial", error);
+        }
+
+        setMapCoords({ latitude: initialLat, longitude: initialLng });
+        setInitialMapCoords({ latitude: initialLat, longitude: initialLng });
+        setMapAddress("Cargando dirección...");
+        setMapSearchQuery("");
+        setMapSuggestions([]);
+        setMapModalVisible(true);
+        reverseGeocode({ latitude: initialLat, longitude: initialLng });
+    };
+
+    const confirmMapPick = () => {
+        if (mapCoords && mapField) {
+            const value = mapAddress && mapAddress !== "Cargando dirección..."
+                ? `${mapAddress} (${mapCoords.latitude.toFixed(6)}, ${mapCoords.longitude.toFixed(6)})`
+                : `${mapCoords.latitude.toFixed(6)}, ${mapCoords.longitude.toFixed(6)}`;
+
+            setFormData(prev => ({
+                ...prev,
+                [mapField]: value
+            }));
+        }
+        setMapModalVisible(false);
+    };
+
     // Encontrar el campo ID principal
     const getIdField = () => fields.find(f => isIdField(f));
+
+    useEffect(() => {
+        const data = item || prefill || {};
+        setFormData(data);
+        setInitialData({ ...data }); // Guardar copia inicial
+    }, [item, prefill, dataKey]);
 
     useEffect(() => {
         if (!isEdit) {
@@ -165,7 +582,7 @@ export default function FormScreen({ route, navigation }) {
             const updatedFormData = { ...formData };
             let hasChanges = false;
 
-            fields.forEach(field => {
+            fields?.forEach(field => {
                 if (isIdField(field) && !formData[field]) {
                     updatedFormData[field] = generateUniversalId(field, dataKey);
                     hasChanges = true;
@@ -174,12 +591,12 @@ export default function FormScreen({ route, navigation }) {
 
             if (hasChanges) setFormData(updatedFormData);
         }
-    }, [allData, dataKey, fields, isEdit]);
+    }, [allData, dataKey, fields, isEdit, item, prefill]);
 
-    const handleSave = async () => {
+    const handleSave = async (stayInFormForModel = false) => {
         // Validación básica
         if (Object.keys(formData).length === 0) {
-            Alert.alert("Error", "Por favor completa al menos un campo");
+            showAlert("Error", "Por favor completa al menos un campo");
             return;
         }
 
@@ -198,10 +615,38 @@ export default function FormScreen({ route, navigation }) {
                 );
 
                 if (existingVehicle) {
-                    Alert.alert(
+                    showAlert(
                         "Matrícula Duplicada",
                         `La matrícula ${matricula} ya está registrada en otro vehículo.`
                     );
+                    return;
+                }
+            }
+        }
+
+        // Validación de Duplicados para Catálogo (Marcas/Modelos)
+        if (dataKey === 'catalog' && !isEdit) {
+            const titleLower = title?.toLowerCase() || '';
+            const fieldsLower = fields?.map(f => f.toLowerCase()) || [];
+
+            // Si el formulario contiene 'Modelo' y 'Marca', es un Modelo
+            if (fieldsLower.includes('modelo') && fieldsLower.includes('marca')) {
+                const existingModel = allData.catalog?.find(m =>
+                    String(m.Marca || '').toLowerCase().trim() === String(formData.Marca || '').toLowerCase().trim() &&
+                    String(m.Modelo || '').toLowerCase().trim() === String(formData.Modelo || '').toLowerCase().trim()
+                );
+                if (existingModel) {
+                    showAlert("Modelo Existente", `El modelo "${formData.Modelo}" ya está registrado para la marca ${formData.Marca}.`);
+                    return;
+                }
+            }
+            // Si tiene 'Marca' pero NO 'Modelo', es una Marca
+            else if (fieldsLower.includes('marca')) {
+                const existingBrand = allData.catalog?.find(b =>
+                    String(b.Marca || '').toLowerCase().trim() === String(formData.Marca || '').toLowerCase().trim()
+                );
+                if (existingBrand) {
+                    showAlert("Marca Existente", `La marca "${formData.Marca}" ya está registrada.`);
                     return;
                 }
             }
@@ -215,7 +660,7 @@ export default function FormScreen({ route, navigation }) {
             if (!isEdit) {
                 const vehicles = allData.getVehiculosByCliente(clientName);
                 if (!vehicleMatricula && vehicles.length === 0) {
-                    Alert.alert(
+                    showAlert(
                         "Vehículo Requerido",
                         "Cada cliente debe tener al menos un vehículo asignado. ¿Deseas registrar uno ahora?",
                         [
@@ -224,7 +669,7 @@ export default function FormScreen({ route, navigation }) {
                                 text: "Sí, Registrar Vehículo",
                                 onPress: async () => {
                                     await addItem(dataKey, formData);
-                                    navigation.push('Form', {
+                                    navigation.navigate('Form', {
                                         title: 'Vehículo',
                                         dataKey: 'vehiculos',
                                         fields: ['Matricula', 'Marca', 'Modelo', 'Año de Fabricacion', 'Color', 'Codigo VIN', 'Notas'],
@@ -260,15 +705,24 @@ export default function FormScreen({ route, navigation }) {
 
             if (result && result.success === false) {
                 goBackToList();
-                Alert.alert(
+                showAlert(
                     "Sincronización Pendiente",
                     "Los datos se guardaron localmente pero hubo un problema con la nube: " + (result.error || "Error de respuesta")
                 );
             } else {
-                goBackToList();
+                if (stayInFormForModel) {
+                    navigation.navigate('Form', {
+                        title: 'Modelo',
+                        dataKey: 'catalog',
+                        prefill: { Marca: formData.Marca, ID_Marca: formData.ID_Marca },
+                        fields: ['ID_Marca', 'ID_Modelo', 'Marca', 'Modelo', 'Slug_Modelo']
+                    });
+                } else {
+                    goBackToList();
+                }
             }
         } catch (error) {
-            Alert.alert("Error de Conexión", "No se pudo contactar con el servidor. Revisa tu internet.");
+            showAlert("Error de Conexión", "No se pudo contactar con el servidor. Revisa tu internet.");
         }
     };
 
@@ -287,19 +741,19 @@ export default function FormScreen({ route, navigation }) {
 
                 if (result && result.success === false) {
                     goBackToList();
-                    Alert.alert("Borrado Local", "Se eliminó localmente pero no se pudo borrar en la nube.");
+                    showAlert("Borrado Local", "Se eliminó localmente pero no se pudo borrar en la nube.");
                 } else {
                     goBackToList();
-                    Alert.alert("Eliminado", "El registro se ha eliminado correctamente de la nube.");
+                    showAlert("Eliminado", "El registro se ha eliminado correctamente de la nube.");
                 }
             } catch (error) {
-                Alert.alert("Error", "No se pudo procesar la eliminación.");
+                showAlert("Error", "No se pudo procesar la eliminación.");
             } finally {
                 setIsDeleting(false);
             }
         } else {
             setShowDeleteModal(false);
-            Alert.alert("Error", "No se pudo eliminar el registro");
+            showAlert("Error", "No se pudo eliminar el registro");
         }
     };
 
@@ -334,7 +788,7 @@ export default function FormScreen({ route, navigation }) {
         } else if (fieldLower.includes('modelo')) {
             const selectedMarca = formData.Marca;
             if (!selectedMarca) {
-                Alert.alert("Atención", "Por favor selecciona primero una Marca");
+                showAlert("Atención", "Por favor selecciona primero una Marca");
                 return;
             }
             // Filtrar modelos por la marca seleccionada
@@ -369,7 +823,7 @@ export default function FormScreen({ route, navigation }) {
             setPickerSearchQuery(''); // Resetear búsqueda al abrir
             setPickerVisible(true);
         } else {
-            Alert.alert("Info", "No hay opciones disponibles para este campo");
+            showAlert("Info", "No hay opciones disponibles para este campo");
         }
     };
 
@@ -397,12 +851,23 @@ export default function FormScreen({ route, navigation }) {
     };
 
     const isPickerField = (field) => {
-        if (isIdField(field)) return false; // Los IDs nunca son pickers en este formulario
+        if (isIdField(field)) return false;
 
         const f = field.toLowerCase();
+        const titleLower = title?.toLowerCase() || '';
+
+        // En el CATALOGO, el campo que define la entidad debe ser texto libre
+        if (dataKey === 'catalog') {
+            if (titleLower.includes('marca') && f.includes('marca')) return false;
+            if (titleLower.includes('modelo') && f.includes('modelo')) return false;
+            // Otros campos del catálogo como 'Slug_Modelo' también son texto
+            if (f.includes('slug')) return false;
+        }
+
         if ((f === 'placa' || f === 'matricula') && dataKey === 'vehiculos') {
             return false;
         }
+
         return f.includes('cliente') || f.includes('tecnico') || f.includes('placa') || f.includes('matricula') ||
             f === 'estado' || f.includes('vehiculo') || f.includes('vehículo') ||
             f.includes('marca') || f.includes('modelo');
@@ -418,7 +883,23 @@ export default function FormScreen({ route, navigation }) {
             <CustomHeader
                 title={isEdit ? `EDITAR ${title}` : `NUEVO ${title}`}
                 showBack={true}
-                leftAction={goBackToList}
+                leftAction={() => {
+                    // Comparar JSONs para detectar cambios reales de forma profunda
+                    const hasChanges = JSON.stringify(formData) !== JSON.stringify(initialData);
+
+                    if (hasChanges) {
+                        showAlert(
+                            "Salir",
+                            "¿Deseas descartar los cambios realizados?",
+                            [
+                                { text: "No", style: "cancel" },
+                                { text: "Sí", onPress: goBackToList }
+                            ]
+                        );
+                    } else {
+                        goBackToList();
+                    }
+                }}
             />
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll}>
                 {fields.map((field) => {
@@ -446,30 +927,40 @@ export default function FormScreen({ route, navigation }) {
                                             {formData[field] || `Seleccionar ${field}...`}
                                         </Text>
                                     </TouchableOpacity>
+                                ) : isId ? (
+                                    <View style={[styles.input, styles.idInput, { justifyContent: 'center' }]}>
+                                        <Text style={{ color: Colors.primary, fontWeight: 'bold', fontSize: 16 }}>
+                                            {formData[field]?.toString() || ''}
+                                        </Text>
+                                        <Lock size={16} color={Colors.primary} style={styles.idIcon} />
+                                    </View>
                                 ) : (
                                     <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                                         <TextInput
-                                            style={[styles.input, isId && styles.idInput, { flex: 1 }]}
+                                            style={[styles.input, { flex: 1 }]}
                                             placeholder={`Ingresa ${field}...`}
                                             placeholderTextColor={Colors.textSecondary}
                                             value={formData[field]?.toString() || ''}
-                                            keyboardType={field.toLowerCase().includes('año') || field.toLowerCase().includes('fabricacion') ? 'numeric' : 'default'}
+                                            keyboardType={(field.toLowerCase().includes('año') || field.toLowerCase().includes('fabricacion') || field.toLowerCase().includes('hora')) ? 'numeric' : 'default'}
                                             autoCapitalize={(field.toLowerCase() === 'placa' || field.toLowerCase() === 'matricula' || field.toLowerCase().includes('vin')) ? 'characters' : 'sentences'}
                                             onChangeText={(text) => {
-                                                if (isId && isEdit) return;
-
                                                 let finalValue = text;
                                                 const fLower = field.toLowerCase();
                                                 if (fLower === 'año' || fLower.includes('fabricacion')) {
                                                     finalValue = formatMonthYear(text);
+                                                } else if (fLower.includes('hora')) {
+                                                    finalValue = formatTime(text);
                                                 } else if (fLower === 'placa' || fLower === 'matricula' || fLower.includes('vin')) {
                                                     finalValue = text.toUpperCase();
                                                 }
 
                                                 setFormData({ ...formData, [field]: finalValue });
                                             }}
-                                            editable={!(isId && isEdit)}
-                                            maxLength={field.toLowerCase().includes('año') || field.toLowerCase().includes('fabricacion') ? 7 : undefined}
+                                            maxLength={
+                                                (field.toLowerCase().includes('año') || field.toLowerCase().includes('fabricacion')) ? 7 :
+                                                    field.toLowerCase().includes('hora') ? 5 :
+                                                        undefined
+                                            }
                                         />
                                         {(field.toLowerCase().includes('año') || field.toLowerCase().includes('fabricacion')) && (
                                             <TouchableOpacity
@@ -490,24 +981,102 @@ export default function FormScreen({ route, navigation }) {
                                             <TouchableOpacity
                                                 style={styles.calendarButton}
                                                 onPress={() => {
-                                                    Alert.alert("Escáner", `Iniciando escáner para ${field}... (Simulado)`);
+                                                    showAlert("Escáner", `Iniciando escáner para ${field}... (Simulado)`);
                                                     // Aquí iría la lógica de OCR real
                                                 }}
                                             >
                                                 <Camera size={24} color={Colors.primary} />
                                             </TouchableOpacity>
                                         )}
+                                        {field === 'Nombre' && dataKey === 'clients' && (
+                                            <TouchableOpacity
+                                                style={styles.calendarButton}
+                                                onPress={importFromContacts}
+                                            >
+                                                <SearchIcon size={24} color={Colors.primary} />
+                                            </TouchableOpacity>
+                                        )}
+                                        {(field.toLowerCase().includes('lugar') || field.toLowerCase().includes('partida')) && dataKey === 'rescates' && (
+                                            <TouchableOpacity
+                                                style={styles.calendarButton}
+                                                onPress={() => openMapForField(field)}
+                                            >
+                                                <MapPin size={24} color={Colors.primary} />
+                                            </TouchableOpacity>
+                                        )}
                                     </View>
                                 )}
-                                {(isId || isPicker) && (
+                                {isPicker && (
                                     <View style={styles.idIcon}>
-                                        {isId ? <Lock size={16} color={Colors.textSecondary} /> : <X size={16} color={Colors.textSecondary} />}
+                                        <X size={16} color={Colors.textSecondary} />
                                     </View>
                                 )}
                             </View>
                         </View>
                     );
                 })}
+
+                {/* Resumen de Reputación del Cliente (si se ha seleccionado uno) */}
+                {(formData.Cliente || formData.Nombre) && (dataKey === 'orders' || dataKey === 'invoices') && (
+                    <View style={styles.reputationCard}>
+                        {(() => {
+                            const clientName = formData.Cliente || formData.Nombre;
+                            const rep = allData.getClientReputation(clientName);
+                            return (
+                                <>
+                                    <View style={styles.reputationHeader}>
+                                        <Text style={styles.reputationTitle}>Historial del Cliente: {clientName}</Text>
+                                        <View style={styles.starsRow}>
+                                            {[1, 2, 3, 4, 5].map(s => (
+                                                <Star
+                                                    key={s}
+                                                    size={14}
+                                                    color={s <= rep.estrellas ? "#FFD700" : Colors.textSecondary + '40'}
+                                                    fill={s <= rep.estrellas ? "#FFD700" : "transparent"}
+                                                />
+                                            ))}
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.reputationStats}>
+                                        <View style={styles.repStatItem}>
+                                            <Text style={styles.repStatLabel}>Puntos</Text>
+                                            <Text style={styles.repStatValue}>{rep.puntos}</Text>
+                                        </View>
+                                        <View style={styles.repStatItem}>
+                                            <Text style={styles.repStatLabel}>Propinas</Text>
+                                            <Text style={[styles.repStatValue, { color: '#32CD32' }]}>${rep.totalPropinas}</Text>
+                                        </View>
+                                        <View style={styles.repStatItem}>
+                                            <Text style={styles.repStatLabel}>Regateos</Text>
+                                            <Text style={[styles.repStatValue, { color: '#FF6347' }]}>${rep.totalRegateos}</Text>
+                                        </View>
+                                    </View>
+
+                                    {rep.frecuenciaRegateo > 0 && (
+                                        <View style={styles.hagglingWarning}>
+                                            <AlertTriangle size={18} color="#FF6347" />
+                                            <View style={{ marginLeft: 10 }}>
+                                                <Text style={styles.warningTitle}>ALERTA DE REGATEO</Text>
+                                                <Text style={styles.warningDesc}>Este cliente suele pedir descuentos con frecuencia.</Text>
+                                            </View>
+                                        </View>
+                                    )}
+
+                                    {rep.estrellas === 5 && (
+                                        <View style={[styles.hagglingWarning, { backgroundColor: '#FFD70015', borderColor: '#FFD70040' }]}>
+                                            <Star size={18} color="#FFD700" fill="#FFD700" />
+                                            <View style={{ marginLeft: 10 }}>
+                                                <Text style={[styles.warningTitle, { color: '#DAA520' }]}>CLIENTE VIP</Text>
+                                                <Text style={[styles.warningDesc, { color: '#DAA520' }]}>Este cliente tiene un excelente historial de pagos.</Text>
+                                            </View>
+                                        </View>
+                                    )}
+                                </>
+                            );
+                        })()}
+                    </View>
+                )}
 
                 <View style={styles.actions}>
                     {isEdit && (
@@ -523,10 +1092,19 @@ export default function FormScreen({ route, navigation }) {
                         <X size={20} color={Colors.text} />
                         <Text style={styles.buttonText}>CANCELAR</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.button, styles.save]} onPress={handleSave}>
+                    <TouchableOpacity style={[styles.button, styles.save]} onPress={() => handleSave()}>
                         <Save size={20} color="#FFF" />
                         <Text style={styles.buttonText}>GUARDAR</Text>
                     </TouchableOpacity>
+                    {dataKey === 'catalog' && fields?.some(f => f.toLowerCase() === 'marca') && !fields?.some(f => f.toLowerCase() === 'modelo') && !isEdit && (
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: Colors.primary, flex: 1.5 }]}
+                            onPress={() => handleSave(true)}
+                        >
+                            <Plus size={20} color="#FFF" />
+                            <Text style={styles.buttonText}>GUARDAR Y AÑADIR MODELO</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </ScrollView>
 
@@ -607,20 +1185,95 @@ export default function FormScreen({ route, navigation }) {
                                     </TouchableOpacity>
                                 ))}
 
-                            {/* Opción de crear nuevo al final de la lista */}
-                            {(pickerConfig?.field.toLowerCase().includes('matricula') || pickerConfig?.field.toLowerCase().includes('vehiculo') || pickerConfig?.field.toLowerCase().includes('vehículo')) && (
+                            {/* Opciones de crear nuevo al final de la lista */}
+                            {(pickerConfig?.field.toLowerCase().includes('cliente')) && (
                                 <TouchableOpacity
                                     style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
                                     onPress={() => {
                                         setPickerVisible(false);
                                         navigation.push('Form', {
+                                            title: 'Cliente',
+                                            dataKey: 'clients',
+                                            fields: ['DNI', 'Nombre', 'Telefono', 'Direccion', 'Notas', 'Vehículo']
+                                        });
+                                    }}
+                                >
+                                    <Text style={[styles.pickerOptionText, { color: Colors.primary, fontWeight: 'bold' }]}>+ AÑADIR NUEVO CLIENTE</Text>
+                                    <Text style={styles.pickerOptionSubtext}>Si el cliente no está registrado</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {(pickerConfig?.field.toLowerCase().includes('tecnico')) && (
+                                <TouchableOpacity
+                                    style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
+                                    onPress={() => {
+                                        setPickerVisible(false);
+                                        navigation.push('Form', {
+                                            title: 'Técnico',
+                                            dataKey: 'tecnicos',
+                                            fields: ['ID_tecnico', 'Nombre', 'Especialidad', 'Telefono', 'Estado']
+                                        });
+                                    }}
+                                >
+                                    <Text style={[styles.pickerOptionText, { color: Colors.primary, fontWeight: 'bold' }]}>+ AÑADIR NUEVO TÉCNICO</Text>
+                                    <Text style={styles.pickerOptionSubtext}>Registrar un nuevo mecánico</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {(pickerConfig?.field.toLowerCase().includes('marca')) && (
+                                <TouchableOpacity
+                                    style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
+                                    onPress={() => {
+                                        setPickerVisible(false);
+                                        navigation.push('Form', {
+                                            title: 'Marca',
+                                            dataKey: 'catalog',
+                                            fields: ['Marca', 'ID_Marca']
+                                        });
+                                    }}
+                                >
+                                    <Text style={[styles.pickerOptionText, { color: Colors.primary, fontWeight: 'bold' }]}>+ AÑADIR NUEVA MARCA</Text>
+                                    <Text style={styles.pickerOptionSubtext}>Si la marca no está en el catálogo</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {(pickerConfig?.field.toLowerCase().includes('modelo')) && (
+                                <TouchableOpacity
+                                    style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
+                                    onPress={() => {
+                                        setPickerVisible(false);
+                                        const brandVal = formData.Marca || formData.ID_Marca;
+                                        navigation.push('Form', {
+                                            title: 'Modelo',
+                                            dataKey: 'catalog',
+                                            prefill: brandVal ? { Marca: brandVal } : {},
+                                            fields: ['ID_Marca', 'ID_Modelo', 'Marca', 'Modelo', 'Slug_Modelo']
+                                        });
+                                    }}
+                                >
+                                    <Text style={[styles.pickerOptionText, { color: Colors.primary, fontWeight: 'bold' }]}>+ AÑADIR NUEVO MODELO</Text>
+                                    <Text style={styles.pickerOptionSubtext}>Si el modelo no está en el catálogo</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {(pickerConfig?.field.toLowerCase().includes('matricula') || pickerConfig?.field.toLowerCase().includes('vehiculo') || pickerConfig?.field.toLowerCase().includes('vehículo')) && (
+                                <TouchableOpacity
+                                    style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
+                                    onPress={() => {
+                                        setPickerVisible(false);
+                                        // Obtener el cliente actual para pre-vincular el vehículo
+                                        const currentClient = formData.Nombre || formData.Cliente;
+                                        const currentClientIdField = fields.find(f => f.toLowerCase().includes('id_cliente'));
+                                        const currentClientId = currentClientIdField ? formData[currentClientIdField] : null;
+
+                                        navigation.push('Form', {
                                             title: 'Vehículo',
                                             dataKey: 'vehiculos',
                                             fields: ['Matricula', 'Marca', 'Modelo', 'Año de Fabricacion', 'Color', 'Codigo VIN', 'Notas'],
                                             prefill: {
-                                                'Cliente(REF)': formData.Nombre || formData.Cliente,
-                                                'Cliente': formData.Nombre || formData.Cliente,
-                                                ID_Cliente: formData[idField]
+                                                'Cliente(REF)': currentClient,
+                                                'Cliente': currentClient,
+                                                ID_Cliente: currentClientId
                                             }
                                         });
                                     }}
@@ -710,6 +1363,138 @@ export default function FormScreen({ route, navigation }) {
                     </View>
                 </View>
             </Modal>
+
+            {/* Modal Interactivos de Mapa */}
+            <Modal visible={mapModalVisible} animationType="slide" transparent={true}>
+                <View style={[styles.modalOverlay, { padding: 0, justifyContent: 'flex-end' }]}>
+                    <View style={[styles.modalContent, { height: '90%', padding: 0, borderRadius: 0, borderTopLeftRadius: 16, borderTopRightRadius: 16, zIndex: 1 }]}>
+                        {/* Header con Buscador Style Uber */}
+                        <View style={{ padding: 16, backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border, borderTopLeftRadius: 16, borderTopRightRadius: 16, zIndex: 5000, elevation: 5 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                                <Text style={styles.modalTitle}>¿A dónde vamos?</Text>
+                                <TouchableOpacity onPress={() => setMapModalVisible(false)} style={{ padding: 5 }}>
+                                    <X size={24} color={Colors.textSecondary} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, borderRadius: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: Colors.border }}>
+                                <SearchIcon size={20} color={Colors.textSecondary} />
+                                <TextInput
+                                    style={{ flex: 1, height: 45, color: Colors.text, paddingHorizontal: 10, fontSize: 15 }}
+                                    placeholder="Buscar dirección (ej: Calle El Conde)..."
+                                    placeholderTextColor={Colors.textSecondary}
+                                    value={mapSearchQuery}
+                                    onChangeText={setMapSearchQuery}
+                                    onSubmitEditing={handleSearchAddress}
+                                    returnKeyType="search"
+                                />
+                                {mapSearching ? (
+                                    <ActivityIndicator size="small" color={Colors.primary} />
+                                ) : (
+                                    <TouchableOpacity onPress={handleSearchAddress}>
+                                        <Plus size={20} color={Colors.primary} />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+
+                            {/* Lista de Sugerencias */}
+                            {mapSuggestions.length > 0 && (
+                                <View style={{
+                                    position: 'absolute',
+                                    top: 110,
+                                    left: 16,
+                                    right: 16,
+                                    backgroundColor: Colors.card,
+                                    borderRadius: 12,
+                                    zIndex: 2000,
+                                    elevation: 10,
+                                    borderWidth: 1,
+                                    borderColor: Colors.border,
+                                    shadowColor: "#000",
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.3,
+                                    shadowRadius: 5
+                                }}>
+                                    <View style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: Colors.border }}>
+                                        <Text style={{ color: Colors.textSecondary, fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase' }}>Sugerencias encontradas</Text>
+                                    </View>
+                                    {mapSuggestions.slice(0, 6).map((item, index) => (
+                                        <TouchableOpacity
+                                            key={index}
+                                            style={{
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                padding: 14,
+                                                borderBottomWidth: index === 5 ? 0 : 1,
+                                                borderBottomColor: Colors.border
+                                            }}
+                                            onPress={() => handleSelectSuggestion(item)}
+                                        >
+                                            <MapPin size={18} color={Colors.primary} style={{ marginRight: 12 }} />
+                                            <View style={{ flex: 1 }}>
+                                                <Text numberOfLines={1} style={{ color: Colors.text, fontSize: 14, fontWeight: '500' }}>
+                                                    {item.display_name.split(',')[0]}
+                                                </Text>
+                                                <Text numberOfLines={1} style={{ color: Colors.textSecondary, fontSize: 12 }}>
+                                                    {item.display_name.split(',').slice(1).join(',').trim()}
+                                                </Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+                        </View>
+
+                        <View style={{ flex: 1, backgroundColor: '#CCC', zIndex: -1 }}>
+                            {Platform.OS === 'web' ? memoizedWebMap : null}
+                            {Platform.OS !== 'web' && mapCoords && MapView && (
+                                <View style={{ flex: 1 }}>
+                                    <MapView
+                                        style={{ flex: 1 }}
+                                        userInterfaceStyle="dark"
+                                        initialRegion={{
+                                            latitude: mapCoords.latitude,
+                                            longitude: mapCoords.longitude,
+                                            latitudeDelta: 0.005,
+                                            longitudeDelta: 0.005,
+                                        }}
+                                        onRegionChangeComplete={(region) => {
+                                            const newC = { latitude: region.latitude, longitude: region.longitude };
+                                            // Solo actualizar si la diferencia es significante para evitar bucles
+                                            const diffLat = Math.abs(newC.latitude - mapCoords.latitude);
+                                            const diffLng = Math.abs(newC.longitude - mapCoords.longitude);
+                                            if (diffLat > 0.00001 || diffLng > 0.00001) {
+                                                setMapCoords(newC);
+                                                reverseGeocode(newC);
+                                            }
+                                        }}
+                                    />
+                                    <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]} pointerEvents="none">
+                                        <MapPin size={48} color="#E53935" fill="#E53935" style={{ marginBottom: 48 }} />
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                        <View style={{ padding: 16, backgroundColor: Colors.card, borderTopColor: Colors.border, borderTopWidth: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15, backgroundColor: Colors.background, padding: 12, borderRadius: 10 }}>
+                                <View style={{ backgroundColor: Colors.primary + '20', padding: 8, borderRadius: 20, marginRight: 12 }}>
+                                    <MapPin size={24} color={Colors.primary} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ color: Colors.textSecondary, fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 2 }}>Ubicación Seleccionada</Text>
+                                    <Text numberOfLines={2} style={{ color: Colors.text, fontSize: 15, fontWeight: 'bold' }}>
+                                        {mapAddress || 'Buscando dirección...'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <TouchableOpacity style={[styles.primaryButton, { height: 55 }]} onPress={confirmMapPick}>
+                                <Text style={styles.primaryButtonText}>Confirmar Punto de Rescate</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
@@ -742,6 +1527,72 @@ const styles = StyleSheet.create({
     idIcon: {
         position: 'absolute',
         right: 12,
+    },
+    reputationCard: {
+        backgroundColor: Colors.card,
+        marginHorizontal: 16,
+        marginTop: 8,
+        marginBottom: 24,
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
+    reputationHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    reputationTitle: {
+        color: Colors.text,
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    starsRow: {
+        flexDirection: 'row',
+    },
+    reputationStats: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        backgroundColor: Colors.background,
+        padding: 12,
+        borderRadius: 8,
+    },
+    repStatItem: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    repStatLabel: {
+        color: Colors.textSecondary,
+        fontSize: 10,
+        textTransform: 'uppercase',
+    },
+    repStatValue: {
+        color: Colors.text,
+        fontSize: 15,
+        fontWeight: 'bold',
+        marginTop: 4,
+    },
+    hagglingWarning: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FF634710',
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 12,
+        borderWidth: 1,
+        borderColor: '#FF634730',
+    },
+    warningTitle: {
+        color: '#FF6347',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    warningDesc: {
+        color: '#FF6347',
+        fontSize: 11,
+        opacity: 0.8,
     },
     actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, flexWrap: 'wrap' },
     button: {
