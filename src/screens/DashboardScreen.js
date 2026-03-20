@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { Colors } from '../constants';
-import { ClipboardList, Car, Users, FileCheck, Warehouse, Calendar, Wrench, Search } from 'lucide-react-native';
+import { ClipboardList, Car, Users, FileCheck, Warehouse, Calendar, Wrench, Search, MapPin } from 'lucide-react-native';
 import { CustomHeader } from '../components/CustomHeader';
 import { useData } from '../context/DataContext';
 import { FAB } from '../components/FAB';
@@ -26,7 +26,7 @@ const ShortcutBtn = ({ label, icon, onPress }) => (
 );
 
 export default function DashboardScreen({ navigation }) {
-    const { orders, clients, vehiculos, citas } = useData();
+    const { orders, clients, vehiculos, citas, settings } = useData();
 
     const activeOrders = (orders || []).filter(o =>
         o.Estado?.toLowerCase().includes('pendiente') ||
@@ -75,36 +75,45 @@ export default function DashboardScreen({ navigation }) {
                 {/* Accesos rápidos */}
                 <Text style={styles.sectionTitle}>Accesos rápidos</Text>
                 <View style={styles.shortcuts}>
-                    <ShortcutBtn
-                        label="Garage"
-                        icon={<Warehouse size={28} color={Colors.primary} />}
-                        onPress={() => navigation.navigate('Garage')}
-                    />
-                    <ShortcutBtn
-                        label="Facturación"
-                        icon={<FileCheck size={28} color="#E53935" />}
-                        onPress={() => navigation.navigate('Billing')}
-                    />
-                    <ShortcutBtn
-                        label="Servicios"
-                        icon={<Wrench size={28} color="#4CAF50" />}
-                        onPress={() => navigation.navigate('Services')}
-                    />
-                    <ShortcutBtn
-                        label="Buscar"
-                        icon={<Search size={28} color="#FF9800" />}
-                        onPress={() => navigation.navigate('VehicleSearch')}
-                    />
+                    {(() => {
+                        const shortcutsList = settings?.shortcuts || ['Garage', 'Billing', 'Services', 'VehicleSearch'];
+                        const SHORTCUT_CONFIG = {
+                            'Garage': { label: 'Garage', icon: <Warehouse size={28} color={Colors.primary} />, route: 'Garage' },
+                            'Billing': { label: 'Facturación', icon: <FileCheck size={28} color="#E53935" />, route: 'Billing' },
+                            'Services': { label: 'Servicios', icon: <Wrench size={28} color="#4CAF50" />, route: 'Services' },
+                            'VehicleSearch': { label: 'Buscar', icon: <Search size={28} color="#FF9800" />, route: 'VehicleSearch' },
+                            'Orders': { label: 'Órdenes', icon: <ClipboardList size={28} color="#9C27B0" />, route: 'Orders' },
+                            'AppointmentList': { label: 'Citas', icon: <Calendar size={28} color="#FF5722" />, route: 'AppointmentList' },
+                            'ClientList': { label: 'Clientes', icon: <Users size={28} color="#03A9F4" />, route: 'ClientList' },
+                            'Rescue': { label: 'Rescate', icon: <MapPin size={28} color="#E91E63" />, route: 'Rescue' },
+                        };
+                        return shortcutsList.map(id => {
+                            const config = SHORTCUT_CONFIG[id];
+                            if (!config) return null;
+                            return (
+                                <ShortcutBtn
+                                    key={id}
+                                    label={config.label}
+                                    icon={config.icon}
+                                    onPress={() => navigation.navigate(config.route)}
+                                />
+                            );
+                        });
+                    })()}
                 </View>
 
             </ScrollView>
             
             <FAB 
                 onPress={() => navigation.navigate('Form', { 
-                    title: 'Rescate', 
+                    title: 'Nuevo Rescate', 
                     dataKey: 'rescates', 
-                    fields: ['IdRescate', 'Cliente', 'Matricula', 'Fecha', 'Hora', 'Punto de Partida', 'Lugar del Rescate', 'Estado', 'Trayectoria'],
-                    prefill: { 'Punto de Partida': 'Taller' }
+                    fields: ['IdRescate', 'Cliente', 'Matricula', 'Fecha', 'Hora', 'Punto de Partida', 'Lugar del Rescate', 'Trayectoria'],
+                    prefill: { 
+                        'Estado': 'Pendiente', 
+                        'Fecha': new Date().toISOString().split('T')[0],
+                        'Punto de Partida': settings?.tallerName || 'Taller'
+                    }
                 })} 
             />
         </View>

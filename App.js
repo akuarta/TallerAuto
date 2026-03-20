@@ -33,8 +33,11 @@ import VehicleManagerScreen from './src/screens/VehicleManagerScreen';
 import TechnicianListScreen from './src/screens/TechnicianListScreen';
 import AppointmentListScreen from './src/screens/AppointmentListScreen';
 import RescueScreen from './src/screens/RescueScreen';
+import RescueListScreen from './src/screens/RescueListScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import VehicleTechnicalDetailScreen from './src/screens/VehicleTechnicalDetailScreen';
 
-import { Home, ClipboardList, List, Wrench, LayoutDashboard, Search, MapPin } from 'lucide-react-native';
+import { Home, ClipboardList, List, Wrench, LayoutDashboard, Search, MapPin, Settings } from 'lucide-react-native';
 import SplashScreen from './src/screens/SplashScreen';
 import { useData } from './src/context/DataContext';
 
@@ -127,11 +130,16 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Rescue"
-        component={RescueScreen}
+        component={RescueListScreen}
         options={{
           tabBarIcon: ({ color }) => <MapPin color={color} size={24} />,
           tabBarLabel: 'RESCATE'
         }}
+      />
+      <Tab.Screen
+        name="RescueDetails"
+        component={RescueScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
       <Tab.Screen
         name="AppointmentList"
@@ -167,6 +175,16 @@ function MainTabs() {
       <Tab.Screen
         name="Form"
         component={FormScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="VehicleTechnicalDetail"
+        component={VehicleTechnicalDetailScreen}
         options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
     </Tab.Navigator>

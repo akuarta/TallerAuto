@@ -5,7 +5,7 @@ import { Colors } from '../constants';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export const CustomHeader = ({ title, showBack = null, leftAction = null, leftIcon = null }) => {
+export const CustomHeader = ({ title, showBack = null, leftAction = null, leftIcon = null, rightAction = null, rightIcon = null }) => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const canGoBack = leftAction ? true : (showBack !== null ? showBack : navigation.canGoBack());
@@ -36,8 +36,10 @@ export const CustomHeader = ({ title, showBack = null, leftAction = null, leftIc
                 {/* Título centrado */}
                 <Text style={styles.title} numberOfLines={1}>{title}</Text>
 
-                {/* Espacio derecho para balancear */}
-                <View style={styles.sideBtn} />
+                {/* Botón derecho (opcional) */}
+                <TouchableOpacity style={styles.sideBtn} onPress={rightAction} disabled={!rightAction}>
+                    {rightIcon ? rightIcon : null}
+                </TouchableOpacity>
             </View>
         </View>
     );

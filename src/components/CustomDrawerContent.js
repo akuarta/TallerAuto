@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
-import { Users, List, Wrench, Package, ArrowUpRight, Calendar, Info, Share2, LayoutGrid } from 'lucide-react-native';
+import { Users, List, Wrench, Package, ArrowUpRight, Calendar, Info, Share2, LayoutGrid, Settings } from 'lucide-react-native';
 import { Colors } from '../constants';
 
 export function CustomDrawerContent(props) {
@@ -24,6 +24,7 @@ export function CustomDrawerContent(props) {
         { label: 'About', icon: <Info size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard', inTabs: true },
         { label: 'Share', icon: <Share2 size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard', inTabs: true },
         { label: 'App Gallery', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard', inTabs: true },
+        { label: 'CONFIGURACIÓN', icon: <Settings size={22} color={Colors.primary} />, navigateTo: 'Settings', inTabs: true },
     ];
 
     const handleNavigation = (item) => {

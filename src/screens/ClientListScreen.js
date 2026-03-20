@@ -94,7 +94,7 @@ export default function ClientListScreen({ navigation }) {
     const [search, setSearch] = useState('');
 
     // Campos visibles para el usuario (no técnicos)
-    const fields = ['DNI', 'Nombre', 'Telefono', 'Direccion', 'Notas', 'Vehículo'];
+    const fields = ['ID_Cliente', 'Nombre', 'Telefono', 'Direccion', 'Notas'];
 
     const filteredClients = clients.filter(c =>
         (c.Nombre?.toLowerCase() || '').includes(search.toLowerCase()) ||
@@ -113,7 +113,8 @@ export default function ClientListScreen({ navigation }) {
         }
 
         // Limpiar el número de espacios o caracteres raros
-        const cleanNumber = phoneNumber.replace(/[^0-9+]/g, '');
+        const numStr = String(phoneNumber || '');
+        const cleanNumber = numStr.replace(/[^0-9+]/g, '');
         const url = `tel:${cleanNumber}`;
 
         Linking.canOpenURL(url)

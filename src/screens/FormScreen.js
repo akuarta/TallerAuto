@@ -3,16 +3,11 @@ import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert,
 import { Colors } from '../constants';
 import { CustomHeader } from '../components/CustomHeader';
 import { useData } from '../context/DataContext';
-import { Save, X, Lock, Trash2, Calendar, Camera, Plus, Phone, Search as SearchIcon, Star, AlertTriangle, MapPin } from 'lucide-react-native';
+import { Save, X, Lock, Trash2, Calendar, Camera, Plus, Phone, Search as SearchIcon, Star, AlertTriangle, MapPin, CheckSquare, Square } from 'lucide-react-native';
 import * as Contacts from 'expo-contacts';
 import * as Location from 'expo-location';
 
-let MapView, Marker;
-if (Platform.OS !== 'web') {
-    const Maps = require('react-native-maps');
-    MapView = Maps.default;
-    Marker = Maps.Marker;
-}
+import { MapView, Marker } from '../components/MapComponents';
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1Xv37q0S-2pU3b_b1qN5v9fU8rN6-F6N6/edit?usp=sharing";
 const GOOGLE_MAPS_API_KEY = "AIzaSyBhMnl-cxCpsL97ukncJA-MTJugjBrkpug"; // PEGA TU API KEY AQUÍ PARA MAPAS PROFESIONALES
@@ -23,6 +18,7 @@ export default function FormScreen({ route, navigation }) {
     const [formData, setFormData] = useState(item || prefill || {});
     const [initialData, setInitialData] = useState(item || prefill || {}); // Para detectar cambios reales
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [awareOfModels, setAwareOfModels] = useState(false);
     const [pickerVisible, setPickerVisible] = useState(false);
     const [pickerConfig, setPickerConfig] = useState(null); // { field, data, labelField }
     const [pickerSearchQuery, setPickerSearchQuery] = useState('');
@@ -87,21 +83,37 @@ export default function FormScreen({ route, navigation }) {
             f.startsWith('id') && f.length > 2 && !['identificacion', 'identidad'].includes(f); // Evitar falsos positivos como 'identidad'
     };
 
-    // Función para obtener las iniciales según el tipo de entidad (usando los prefijos existentes)
-    const getPrefix = () => {
+    // Función para obtener las iniciales según el tipo de entidad
+    const getPrefix = (fieldName = '') => {
+        const f = (fieldName || '').toLowerCase();
+        // Prioridad al campo específico si se provee
+        if (f.includes('marca')) return 'MARC';
+        if (f.includes('modelo')) return 'MOD';
+        if (f.includes('cliente')) return 'CLIE';
+        if (f.includes('vehiculo') || f.includes('vehículo') || f.includes('matricula')) return 'VEHI';
+        if (f.includes('orden')) return 'ORD';
+        if (f.includes('servicio')) return 'SER';
+        if (f.includes('producto')) return 'PROD';
+        if (f.includes('tecnico') || f.includes('técnico')) return 'TEC';
+        if (f.includes('rescate')) return 'RES';
+        if (f.includes('cita')) return 'CIT';
+        if (f.includes('factura')) return 'FAC';
+        if (f.includes('herramienta')) return 'TOOL';
+
+        // Fallback al título del formulario
         const titleLower = title?.toLowerCase() || '';
-        if (titleLower.includes('servicio')) return 'HS';
-        if (titleLower.includes('cliente')) return 'DNI';
-        if (titleLower.includes('orden')) return 'HO';
-        if (titleLower.includes('marca')) return '';
-        if (titleLower.includes('modelo')) return '';
-        if (titleLower.includes('factura')) return '';
+        if (titleLower.includes('servicio')) return 'SER';
+        if (titleLower.includes('cliente')) return 'CLIE';
+        if (titleLower.includes('orden')) return 'ORD';
+        if (titleLower.includes('marca')) return 'MARC';
+        if (titleLower.includes('modelo')) return 'MOD';
+        if (titleLower.includes('factura')) return 'FAC';
         if (titleLower.includes('cita')) return 'CIT';
-        // Para vehículos, usamos 'HV' como prefijo
-        if (titleLower.includes('vehículo') || titleLower.includes('vehiculo')) return 'HV';
-        if (titleLower.includes('producto')) return 'HP';
-        if (titleLower.includes('técnico') || titleLower.includes('tecnico')) return 'HT';
-        if (titleLower.includes('herramienta')) return 'HH';
+        if (titleLower.includes('vehículo') || titleLower.includes('vehiculo')) return 'VEHI';
+        if (titleLower.includes('producto')) return 'PROD';
+        if (titleLower.includes('técnico') || titleLower.includes('tecnico')) return 'TEC';
+        if (titleLower.includes('herramienta')) return 'TOOL';
+        if (titleLower.includes('rescate')) return 'RES';
         return '';
     };
 
@@ -118,47 +130,41 @@ export default function FormScreen({ route, navigation }) {
         return '';
     };
 
-    // Función para generar ID específico para marca/modelo del catálogo (solo números)
-    const generateCatalogId = (idField) => {
-        const list = allData.catalog || [];
 
-        // Filtrar solo los que tienen el campo ID correspondiente
-        const filteredList = list.filter(item => item[idField]);
-
-        // Para ID_Marca e ID_Modelo, solo buscar números
-        const maxId = filteredList.reduce((max, curr) => {
-            const val = parseInt(curr[idField]) || 0;
-            return !isNaN(val) && val > max ? val : max;
-        }, 0);
-
-        // Devolver solo el número sin prefijo
-        return String(maxId + 1);
-    };
 
     // --- FUNCIONES AUXILIARES ---
 
     // Función universal para generar IDs siguiendo la lógica histórica de la tabla
     const generateUniversalId = (idField, dKey) => {
         const list = allData[dKey] || [];
+        const prefix = getPrefix(idField);
+        
+        const pad = (num, size) => {
+            let s = num + "";
+            while (s.length < size) s = "0" + s;
+            return s;
+        };
+
         if (list.length === 0) {
-            const prefix = getPrefix();
-            return prefix + "1";
+            return prefix + "0001";
         }
 
-        const ids = list.map(item => item[idField]?.toString() || "").filter(id => id !== "");
-        if (ids.length === 0) return getPrefix() + "1";
-
-        const lastId = ids[ids.length - 1];
-        const prefixMatch = lastId.match(/^([A-Za-z]+)/);
-        const prefix = prefixMatch ? prefixMatch[1] : "";
-
-        const maxNum = ids.reduce((max, id) => {
-            const numPart = id.replace(/^\D+/g, '');
-            const num = parseInt(numPart) || 0;
-            return num > max ? num : max;
+        const maxId = list.reduce((max, curr) => {
+            const strVal = String(curr[idField] || '');
+            const numPart = strVal.replace(/[^0-9]/g, '');
+            const val = parseInt(numPart) || 0;
+            return val > max ? val : max;
         }, 0);
 
-        return prefix + (maxNum + 1);
+        const nextId = maxId + 1;
+        
+        // Entidades que requieren padding de 4 ceros (ej: CLIE0001)
+        const needsPadding = ['clients', 'vehiculos', 'orders', 'catalog', 'tecnicos', 'services', 'rescates'];
+        
+        if (needsPadding.includes(dKey)) {
+            return prefix + pad(nextId, 4);
+        }
+        return prefix + nextId;
     };
 
     // Función para formatear el año como mm/AAAA
@@ -200,127 +206,303 @@ export default function FormScreen({ route, navigation }) {
         return colorMap[lower] || lower;
     };
 
-    // Función para importar desde contactos
+    // Función para importar desde contactos nativamente sin depender de app externa
     const importFromContacts = async () => {
         try {
             const { status } = await Contacts.requestPermissionsAsync();
             if (status === 'granted') {
-                const result = await Contacts.presentContactPickerAsync();
-                if (result && !result.cancelled) {
-                    const contact = result;
-                    const name = contact.name || '';
-                    const phone = contact.phoneNumbers && contact.phoneNumbers.length > 0
-                        ? contact.phoneNumbers[0].number
-                        : '';
+                const { data } = await Contacts.getContactsAsync({
+                    fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers],
+                });
 
-                    setFormData(prev => ({
-                        ...prev,
-                        Nombre: name,
-                        Telefono: phone
-                    }));
+                if (data.length > 0) {
+                    const formatContacts = data
+                        .filter(c => c.name && c.phoneNumbers && c.phoneNumbers.length > 0)
+                        .map(c => ({
+                            id: c.id,
+                            name: c.name,
+                            phone: c.phoneNumbers[0].number
+                        }));
+
+                    setPickerConfig({
+                        field: 'Importar Contacto',
+                        data: formatContacts.sort((a, b) => a.name.localeCompare(b.name)),
+                        labelField: 'name'
+                    });
+                    setPickerSearchQuery('');
+                    setPickerVisible(true);
+                } else {
+                    showAlert("Sin Contactos", "Tu agenda está vacía o recién sincronizada. Intenta crear uno primero.");
                 }
             } else {
-                showAlert("Permiso Denegado", "No se puede acceder a los contactos sin permiso.");
+                showAlert("Permiso Denegado", "No se puede acceder a la agenda para leer los contactos.");
             }
         } catch (error) {
-            console.error(error);
-            showAlert("Error", "No se pudo abrir la agenda de contactos.");
+            console.log('Error leyendo agenda:', error.message);
+            showAlert("Problema de Lectura", "Ocurrió un error leyendo los contactos de este dispositivo.");
         }
     };
 
     const [mapModalVisible, setMapModalVisible] = useState(false);
     const [mapCoords, setMapCoords] = useState(null);
     const [mapAddress, setMapAddress] = useState("");
+    const [mapLoadingAddress, setMapLoadingAddress] = useState(false);
     const [mapField, setMapField] = useState(null);
     const [mapSearchQuery, setMapSearchQuery] = useState("");
     const [mapSearching, setMapSearching] = useState(false);
+    const [mapLoadingSuggestions, setMapLoadingSuggestions] = useState(false);
     const [mapSuggestions, setMapSuggestions] = useState([]);
     const [initialMapCoords, setInitialMapCoords] = useState(null);
+    const manualSelectionRef = React.useRef(false);
 
     const reverseGeocode = async (coords) => {
+        if (!coords) return;
+        setMapLoadingAddress(true);
         try {
-            if (GOOGLE_MAPS_API_KEY) {
-                const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${coords.latitude},${coords.longitude}&key=${GOOGLE_MAPS_API_KEY}&language=es`);
+            let searchCoords = { lat: coords.latitude, lng: coords.longitude };
+
+            // SECRETO UBER: Snap to Roads para fijar el punto en la calle exacta
+            if (GOOGLE_MAPS_API_KEY && Platform.OS !== 'web') {
+                try {
+                    const snapUrl = `https://roads.googleapis.com/v1/snapToRoads?path=${coords.latitude},${coords.longitude}&key=${GOOGLE_MAPS_API_KEY}`;
+                    console.log("GOOGLE MAPS REQ (SnapToRoads):", snapUrl);
+                    const snapRes = await fetch(snapUrl);
+                    
+                    if (snapRes.ok) {
+                        const snapData = await snapRes.json();
+                        console.log("GOOGLE MAPS RES (SnapToRoads):", snapData);
+                        if (snapData.snappedPoints && snapData.snappedPoints.length > 0) {
+                            searchCoords = {
+                                lat: snapData.snappedPoints[0].location.latitude,
+                                lng: snapData.snappedPoints[0].location.longitude
+                            };
+                        }
+                    } else {
+                        console.log("Roads API Error (403/Disabled?):", snapRes.status);
+                    }
+                } catch (e) {
+                    console.log("Roads API Connection Error:", e);
+                }
+            }
+
+            // Plan A: Google Geocoding con Coordenadas Ajustadas
+            if (GOOGLE_MAPS_API_KEY && Platform.OS !== 'web') {
+                const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${searchCoords.lat},${searchCoords.lng}&key=${GOOGLE_MAPS_API_KEY}&language=es`;
+                console.log("GOOGLE MAPS REQ (Geocoding):", url);
+                const response = await fetch(url);
                 const data = await response.json();
+                console.log("GOOGLE MAPS RES (Geocoding):", data);
+                
                 if (data.status === 'OK' && data.results.length > 0) {
-                    setMapAddress(data.results[0].formatted_address);
+                    // Buscar el resultado que sea un local o una calle específica
+                    const match = data.results.find(r => r.types.includes('establishment') || r.types.includes('street_address') || r.types.includes('route')) || data.results[0];
+                    setMapAddress(match.formatted_address);
+                    setMapLoadingAddress(false);
                     return;
                 }
             }
             
-            // Fallback a Nominatim
-            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}&addressdetails=1`);
+            // Plan B: Nominatim de Ultra-Precisión (Fallback)
+            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${searchCoords.lat}&lon=${searchCoords.lng}&addressdetails=1&zoom=18`, {
+                headers: { 'Accept-Language': 'es', 'User-Agent': 'TallerApp/1.0' }
+            });
             const data = await response.json();
             
-            if (data && data.display_name) {
-                const parts = data.display_name.split(',');
-                const shortAddress = parts.slice(0, 3).join(',').trim();
-                setMapAddress(shortAddress);
+            if (data && (data.address || data.display_name)) {
+                const addr = data.address || {};
+                const localName = data.name || "";
+                const road = addr.road || addr.pedestrian || addr.path || "";
+                const house = addr.house_number ? " #" + addr.house_number : "";
+                const sector = addr.suburb || addr.neighbourhood || addr.city_district || "";
+                const city = addr.city || addr.town || addr.village || "Santo Domingo";
+                
+                let pretty = "";
+                // Construcción profesional: [Local] + [Calle] + [Sector]
+                if (localName && localName !== road) {
+                    pretty = localName + (road ? ", " + road : "");
+                } else {
+                    pretty = road ? road + house : "";
+                }
+
+                if (sector && !pretty.includes(sector)) {
+                    pretty += (pretty ? ", " : "") + sector;
+                }
+
+                if (!pretty) {
+                    pretty = data.display_name.split(',').slice(0, 2).join(', ').trim();
+                }
+                
+                // Limpieza final
+                let final = pretty
+                    .replace(/, República Dominicana/gi, '')
+                    .replace(/, Dominican Republic/gi, '')
+                    .replace(/^[, \s]+/, '')
+                    .replace(/, ,/g, ',')
+                    .trim();
+                
+                if (final.startsWith(',')) final = final.substring(1).trim();
+                
+                setMapAddress(final || city);
             } else {
                 setMapAddress(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
             }
         } catch (error) {
-            console.log("Error reverseGeocode", error);
+            console.log("Error ReverseGeocode:", error);
             setMapAddress(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+        } finally {
+            setMapLoadingAddress(false);
         }
     };
 
-    // Buscar sugerencias (Google Maps si hay KEY, sino Nominatim)
+    // Guardar referencia de reverseGeocode para evitar cierres obsoletos en el listener
+    const reverseGeocodeRef = React.useRef(reverseGeocode);
+    useEffect(() => {
+        reverseGeocodeRef.current = reverseGeocode;
+    }, [reverseGeocode]);
+
     useEffect(() => {
         const fetchSuggestions = async () => {
-            if (mapSearchQuery.length < 3) {
+            if (mapSearchQuery.length < 2) {
                 setMapSuggestions([]);
+                setMapLoadingSuggestions(false);
                 return;
             }
-            try {
-                if (GOOGLE_MAPS_API_KEY) {
-                    // Usar Geocoding API de Google para buscar (sesgado a República Dominicana)
-                    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(mapSearchQuery)}&key=${GOOGLE_MAPS_API_KEY}&components=country:DO&language=es`);
-                    const data = await response.json();
-                    if (data.status === 'OK') {
-                        const formatted = data.results.map(r => ({
-                            display_name: r.formatted_address,
-                            lat: r.geometry.location.lat,
-                            lon: r.geometry.location.lng,
-                            isGoogle: true
-                        }));
-                        setMapSuggestions(formatted);
-                        return;
+
+            setMapLoadingSuggestions(true);
+            console.log("DEBUG: Iniciando fetchSuggestions para:", mapSearchQuery);
+            
+            // Enriquecer la búsqueda con contexto regional
+            let enrichedQuery = mapSearchQuery;
+            if (!enrichedQuery.toLowerCase().includes('dominica') && !enrichedQuery.toLowerCase().includes('santo')) {
+                enrichedQuery += ", Santo Domingo";
+            }
+
+            if (GOOGLE_MAPS_API_KEY) {
+                if (Platform.OS === 'web') {
+                    const iframe = document.getElementById('map-iframe');
+                    if (iframe && iframe.contentWindow) {
+                        iframe.contentWindow.postMessage(JSON.stringify({
+                            type: 'search_places',
+                            query: enrichedQuery
+                        }), '*');
+                    }
+                } else {
+                    // Móvil: Fetch directo a Google Places Autocomplete
+                    try {
+                        const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(enrichedQuery)}&key=${GOOGLE_MAPS_API_KEY}&language=es&components=country:do`;
+                        console.log("GOOGLE MAPS REQ (Places Autocomplete):", url);
+                        const res = await fetch(url);
+                        const data = await res.json();
+                        console.log("GOOGLE MAPS RES (Places Autocomplete):", data);
+                        if (data.status === 'OK') {
+                            const googleResults = data.predictions.map(p => ({
+                                display_name: p.description,
+                                place_id: p.place_id,
+                                isGoogle: true
+                            }));
+                            setMapSuggestions(googleResults);
+                            setMapLoadingSuggestions(false);
+                            return; // En móvil priorizamos Google al 100%
+                        }
+                    } catch (e) {
+                        console.log("Error Google Autocomplete Fetch:", e);
                     }
                 }
-
-                // Fallback Nominatim
-                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(mapSearchQuery)}&addressdetails=1&limit=6&viewbox=-72,20,-68,17&countrycodes=do`);
-                const data = await response.json();
-                setMapSuggestions(data);
-            } catch (error) {
-                console.log("Error buscando sugerencias", error);
             }
+
+            // Fallback o paralelo Nominatim
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(enrichedQuery)}&addressdetails=1&limit=5&viewbox=-72,20,-68,17&countrycodes=do`, {
+                    headers: { 'Accept-Language': 'es', 'User-Agent': 'TallerApp/1.0' }
+                });
+                const nominatimResults = await response.json();
+                setMapSuggestions(nominatimResults);
+            } catch (error) { 
+                console.log("Error Nominatim Search:", error);
+            }
+            
+            if (!GOOGLE_MAPS_API_KEY || Platform.OS === 'web') setMapLoadingSuggestions(false);
         };
 
-        const timer = setTimeout(fetchSuggestions, 500);
+        const timer = setTimeout(fetchSuggestions, 100); 
         return () => clearTimeout(timer);
-    }, [mapSearchQuery]);
+    }, [mapSearchQuery, GOOGLE_MAPS_API_KEY]);
 
-    const handleSelectSuggestion = (suggestion) => {
-        const newCoords = {
-            latitude: parseFloat(suggestion.lat),
-            longitude: parseFloat(suggestion.lon)
-        };
-        setMapCoords(newCoords);
-        setMapAddress(suggestion.display_name);
-        setMapSearchQuery(suggestion.display_name);
-        setMapSuggestions([]);
-
-        if (Platform.OS === 'web') {
-            const iframe = document.getElementById('map-iframe');
-            if (iframe && iframe.contentWindow) {
-                iframe.contentWindow.postMessage(JSON.stringify({
-                    type: 'set_view',
-                    lat: newCoords.latitude,
-                    lng: newCoords.longitude
-                }), '*');
+    const handleSelectSuggestion = async (suggestion) => {
+        let newCoords = null;
+        try {
+            if (Platform.OS === 'web' && GOOGLE_MAPS_API_KEY && suggestion.place_id) {
+                // Delegar detalles al iframe para evitar CORS
+                const iframe = document.getElementById('map-iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage(JSON.stringify({
+                        type: 'get_place_details',
+                        place_id: suggestion.place_id,
+                        display_name: suggestion.display_name
+                    }), '*');
+                    setMapSearchQuery(suggestion.display_name);
+                    setMapSuggestions([]);
+                    return;
+                }
             }
+
+            if (suggestion.place_id && suggestion.isGoogle && Platform.OS !== 'web') {
+                // Móvil: Fetch directo a Place Details para obtener coordenadas y nombre completo
+                const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${suggestion.place_id}&fields=geometry,formatted_address,name&key=${GOOGLE_MAPS_API_KEY}&language=es`;
+                console.log("GOOGLE MAPS REQ (Place Details):", detailsUrl);
+                const res = await fetch(detailsUrl);
+                const data = await res.json();
+                console.log("GOOGLE MAPS RES (Place Details):", data);
+                if (data.status === 'OK' && data.result.geometry) {
+                    console.log("GOOGLE MAPS PLACE DATA:", {
+                        name: data.result.name,
+                        address: data.result.formatted_address,
+                        coords: data.result.geometry.location
+                    });
+                    newCoords = {
+                        latitude: data.result.geometry.location.lat,
+                        longitude: data.result.geometry.location.lng
+                    };
+                    // Priorizar el nombre del local + dirección
+                    const finalName = data.result.name ? `${data.result.name}, ${data.result.formatted_address}` : data.result.formatted_address;
+                    setMapAddress(finalName);
+                    setMapSearchQuery(finalName);
+                }
+            } else if (suggestion.lat && suggestion.lon) {
+                newCoords = {
+                    latitude: parseFloat(suggestion.lat),
+                    longitude: parseFloat(suggestion.lon)
+                };
+                setMapAddress(suggestion.display_name);
+                setMapSearchQuery(suggestion.display_name);
+            } else if (suggestion.latitude && suggestion.longitude) {
+                newCoords = {
+                    latitude: suggestion.latitude,
+                    longitude: suggestion.longitude
+                };
+                setMapAddress(suggestion.display_name);
+                setMapSearchQuery(suggestion.display_name);
+            }
+
+            if (newCoords) {
+                manualSelectionRef.current = true;
+                setMapCoords(newCoords);
+                setMapSuggestions([]);
+
+                if (Platform.OS === 'web') {
+                    const iframe = document.getElementById('map-iframe');
+                    if (iframe && iframe.contentWindow) {
+                        iframe.contentWindow.postMessage(JSON.stringify({
+                            type: 'set_view',
+                            lat: newCoords.latitude,
+                            lng: newCoords.longitude,
+                            zoom: 19
+                        }), '*');
+                    }
+                }
+            }
+        } catch (error) {
+            console.log("Error al seleccionar sugerencia:", error);
         }
     };
 
@@ -353,23 +535,61 @@ export default function FormScreen({ route, navigation }) {
                         <html>
                         <head>
                             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                            <script src="https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}"></script>
+                            <script src="https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&callback=initMap" async></script>
                             <style>
                                 body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #121212; }
                                 .center-marker {
                                     position: absolute;
                                     top: 50%;
                                     left: 50%;
-                                    transform: translate(-50%, -100%);
+                                    transform: translate(-50%, -95.8%);
                                     z-index: 1000;
                                     pointer-events: none;
                                     width: 44px;
                                     height: 44px;
+                                    filter: drop-shadow(0px 8px 6px rgba(0,0,0,0.4));
+                                    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                                }
+                                .picker-dot {
+                                    position: absolute;
+                                    top: 50%;
+                                    left: 50%;
+                                    width: 6px;
+                                    height: 6px;
+                                    background: #FFF;
+                                    border: 2px solid #E53935;
+                                    border-radius: 50%;
+                                    transform: translate(-50%, -50%);
+                                    z-index: 1001;
+                                    pointer-events: none;
+                                }
+                                .picker-crosshair-v {
+                                    position: absolute;
+                                    top: 50%;
+                                    left: 50%;
+                                    width: 1px;
+                                    height: 20px;
+                                    background: rgba(229, 57, 53, 0.5);
+                                    transform: translate(-50%, -50%);
+                                    z-index: 999;
+                                }
+                                .picker-crosshair-h {
+                                    position: absolute;
+                                    top: 50%;
+                                    left: 50%;
+                                    width: 20px;
+                                    height: 1px;
+                                    background: rgba(229, 57, 53, 0.5);
+                                    transform: translate(-50%, -50%);
+                                    z-index: 999;
                                 }
                             </style>
                         </head>
                         <body>
                             <div id="map"></div>
+                            <div class="picker-crosshair-v"></div>
+                            <div class="picker-crosshair-h"></div>
+                            <div class="picker-dot"></div>
                             <svg class="center-marker" viewBox="0 0 24 24" fill="none" stroke="#E53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                                 <circle cx="12" cy="10" r="3"></circle>
@@ -385,26 +605,104 @@ export default function FormScreen({ route, navigation }) {
                                         styles: ${JSON.stringify(googleMapsDarkStyle)}
                                     });
 
+                                    var geocoder = new google.maps.Geocoder();
+                                    var autocompleteService = new google.maps.places.AutocompleteService();
+                                    var placesService = new google.maps.places.PlacesService(map);
+                                    var sessionToken = new google.maps.places.AutocompleteSessionToken();
+
+                                    map.addListener('dragstart', function() {
+                                        document.querySelector('.center-marker').style.transform = 'translate(-50%, -115%) scale(1.1)';
+                                        window.parent.postMessage(JSON.stringify({ type: 'drag_start' }), '*');
+                                    });
+
+                                    map.addListener('dragend', function() {
+                                        document.querySelector('.center-marker').style.transform = 'translate(-50%, -95.8%) scale(1)';
+                                    });
+
+                                    map.addListener('click', function(e) {
+                                        if (e.placeId) {
+                                            console.log("WEB GOOGLE CLICK (Place ID):", e.placeId);
+                                            e.stop(); // Evita el globo informativo de Google para usar nuestra propia interfaz
+                                            window.parent.postMessage(JSON.stringify({
+                                                type: 'get_place_details',
+                                                place_id: e.placeId,
+                                                display_name: 'Cargando lugar...'
+                                            }), '*');
+                                            return;
+                                        }
+                                        console.log("WEB GOOGLE CLICK (LatLng):", e.latLng.lat(), e.latLng.lng());
+                                        map.panTo(e.latLng);
+                                    });
+
                                     map.addListener('idle', function() {
                                         var center = map.getCenter();
-                                        window.parent.postMessage(JSON.stringify({ 
-                                            type: 'map_pick', 
-                                            lat: center.lat(), 
-                                            lng: center.lng() 
-                                        }), '*');
+                                        
+                                        console.log("WEB GOOGLE REQ (Geocoding IDLE):", center.lat(), center.lng());
+                                        geocoder.geocode({ location: center }, function(results, status) {
+                                            console.log("WEB GOOGLE RES (Geocoding IDLE):", status, results ? results[0] : 'No results');
+                                            if (status === 'OK' && results[0]) {
+                                                window.parent.postMessage(JSON.stringify({ 
+                                                    type: 'map_pick', 
+                                                    lat: center.lat(), 
+                                                    lng: center.lng(),
+                                                    address: results[0].formatted_address
+                                                }), '*');
+                                            } else {
+                                                window.parent.postMessage(JSON.stringify({ 
+                                                    type: 'map_pick', 
+                                                    lat: center.lat(), 
+                                                    lng: center.lng() 
+                                                }), '*');
+                                            }
+                                        });
+                                    });
+
+                                    window.addEventListener('message', function(event) {
+                                        try {
+                                            var data = JSON.parse(event.data);
+                                            if (data.type === 'set_view' && map) {
+                                                var pos = new google.maps.LatLng(data.lat, data.lng);
+                                                map.setCenter(pos); map.setZoom(18);
+                                            } else if (data.type === 'search_places') {
+                                                console.log("WEB GOOGLE REQ (Places Autocomplete):", data.query);
+                                                autocompleteService.getPlacePredictions({ 
+                                                    input: data.query, componentRestrictions: { country: 'do' },
+                                                    locationBias: { radius: 10000, center: map.getCenter() },
+                                                    sessionToken: sessionToken
+                                                }, function(predictions, status) {
+                                                    console.log("WEB GOOGLE RES (Places Autocomplete):", status, predictions ? (predictions.length + " predicciones") : "Sin resultados");
+                                                    if (status === 'OK' && predictions) {
+                                                        window.parent.postMessage(JSON.stringify({
+                                                            type: 'search_results', results: predictions.map(function(p) {
+                                                                return { display_name: p.description, place_id: p.place_id, isGoogle: true };
+                                                            })
+                                                        }), '*');
+                                                    } else {
+                                                        window.parent.postMessage(JSON.stringify({ type: 'search_error', status: status }), '*');
+                                                    }
+                                                });
+                                            } else if (data.type === 'get_place_details') {
+                                                console.log("WEB GOOGLE REQ (Place Details):", data.place_id);
+                                                placesService.getDetails({ 
+                                                    placeId: data.place_id, fields: ['geometry', 'formatted_address', 'name'],
+                                                    sessionToken: sessionToken
+                                                }, function(place, status) {
+                                                    console.log("WEB GOOGLE RES (Place Details):", status, place ? place.name : "Sin éxito");
+                                                    sessionToken = new google.maps.places.AutocompleteSessionToken();
+                                                    if (status === 'OK' && place.geometry) {
+                                                        var loc = place.geometry.location;
+                                                        map.setCenter(loc); map.setZoom(19);
+                                                        var finalName = place.name ? (place.name + ", " + place.formatted_address) : place.formatted_address;
+                                                        window.parent.postMessage(JSON.stringify({
+                                                            type: 'place_details', lat: loc.lat(), lng: loc.lng(), display_name: finalName || data.display_name
+                                                        }), '*');
+                                                    }
+                                                });
+                                            }
+                                        } catch(e) {}
                                     });
                                 }
                                 initMap();
-
-                                window.addEventListener('message', function(event) {
-                                    try {
-                                        var data = JSON.parse(event.data);
-                                        if (data.type === 'set_view') {
-                                            map.setCenter({lat: data.lat, lng: data.lng});
-                                            map.setZoom(17);
-                                        }
-                                    } catch(e) {}
-                                });
                             </script>
                         </body>
                         </html>
@@ -442,10 +740,24 @@ export default function FormScreen({ route, navigation }) {
                             height: 40px;
                             filter: invert(100%) hue-rotate(180deg);
                         }
+                        .picker-dot {
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            width: 6px;
+                            height: 6px;
+                            background: white;
+                            border: 2px solid #E53935;
+                            border-radius: 50%;
+                            transform: translate(-50%, -50%);
+                            z-index: 1001;
+                            pointer-events: none;
+                        }
                     </style>
                     </head>
                     <body>
                         <div id="map"></div>
+                        <div class="picker-dot"></div>
                         <svg class="center-marker" viewBox="0 0 24 24" fill="none" stroke="#E53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                             <circle cx="12" cy="10" r="3"></circle>
@@ -454,9 +766,18 @@ export default function FormScreen({ route, navigation }) {
                             var map = L.map('map', {zoomControl: true}).setView([${initialMapCoords.latitude}, ${initialMapCoords.longitude}], 16);
                             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
                             
+                            map.on('movestart', function() {
+                                document.querySelector('.center-marker').style.transform = 'translate(-50%, -115%) scale(1.1)';
+                            });
+
                             map.on('moveend', function() {
+                                document.querySelector('.center-marker').style.transform = 'translate(-50%, -100%) scale(1)';
                                 var center = map.getCenter();
                                 window.parent.postMessage(JSON.stringify({ type: 'map_pick', lat: center.lat, lng: center.lng }), '*');
+                            });
+
+                            map.on('click', function(e) {
+                                map.panTo(e.latlng);
                             });
 
                             window.addEventListener('message', function(event) {
@@ -477,9 +798,19 @@ export default function FormScreen({ route, navigation }) {
 
     const handleSearchAddress = async () => {
         if (!mapSearchQuery.trim()) return;
+        
+        // Si ya hay sugerencias en pantalla, usar la primera (es mucho más preciso que geocodeAsync)
+        if (mapSuggestions.length > 0) {
+            handleSelectSuggestion(mapSuggestions[0]);
+            return;
+        }
+
         setMapSearching(true);
         try {
-            const result = await Location.geocodeAsync(mapSearchQuery);
+            // Intentar geolocalización nativa como última opción
+            console.log("EXPO LOCATION REQ (Search Geocode):", mapSearchQuery + ", Santo Domingo");
+            const result = await Location.geocodeAsync(mapSearchQuery + ", Santo Domingo");
+            console.log("EXPO LOCATION RES (Search Geocode):", result);
             if (result && result.length > 0) {
                 const newCoords = { latitude: result[0].latitude, longitude: result[0].longitude };
                 setMapCoords(newCoords);
@@ -503,11 +834,52 @@ export default function FormScreen({ route, navigation }) {
         if (Platform.OS === 'web') {
             const handleMessage = (event) => {
                 try {
-                    const data = JSON.parse(event.data);
+                    // Verificamos que el mensaje venga de nuestro propio origen o el iframe
+                    const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                    
                     if (data.type === 'map_pick') {
+                        console.log("FROM IFRAME (map_pick):", data.address || "Coordenadas puras", data.lat, data.lng);
                         const newCoords = { latitude: data.lat, longitude: data.lng };
                         setMapCoords(newCoords);
-                        reverseGeocode(newCoords);
+                        
+                        if (data.address) {
+                            setMapAddress(data.address);
+                            // No reseteamos manualSelection aquí porque el mensaje viene del idle del mapa
+                        } else {
+                            if (!manualSelectionRef.current) {
+                                reverseGeocodeRef.current(newCoords);
+                            }
+                        }
+                    } else if (data.type === 'drag_start') {
+                        manualSelectionRef.current = false; // El usuario empezó a mover el mapa manualmente
+                    } else if (data.type === 'search_results') {
+                        setMapLoadingSuggestions(false);
+                        // Mezclar resultados de Google con los que ya tenemos de Nominatim
+                        setMapSuggestions(prev => {
+                            const filtered = prev.filter(s => !s.isGoogle);
+                            return [...data.results, ...filtered].slice(0, 8);
+                        });
+                    } else if (data.type === 'search_error') {
+                        setMapLoadingSuggestions(false);
+                        if (data.status === 'BILLING_NOT_ENABLED') {
+                            console.warn("Google Maps sugiere habilitar facturación para mejores resultados.");
+                        }
+                    } else if (data.type === 'place_details') {
+                        console.log("FROM IFRAME (place_details):", data.display_name, data.lat, data.lng);
+                        const newPos = { latitude: data.lat, longitude: data.lng };
+                        manualSelectionRef.current = true;
+                        setMapCoords(newPos);
+                        setMapAddress(data.display_name);
+                        
+                        // Forzar el movimiento en el Iframe
+                        const iframe = document.getElementById('map-iframe');
+                        if (iframe && iframe.contentWindow) {
+                            iframe.contentWindow.postMessage(JSON.stringify({
+                                type: 'set_view',
+                                lat: data.lat,
+                                lng: data.lng
+                            }), '*');
+                        }
                     }
                 } catch (e) { }
             };
@@ -535,7 +907,9 @@ export default function FormScreen({ route, navigation }) {
             } else {
                 let { status } = await Location.requestForegroundPermissionsAsync();
                 if (status === 'granted') {
-                    let loc = await Location.getCurrentPositionAsync({});
+                    console.log("EXPO LOCATION REQ (CurrentPosition)");
+                    let loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                    console.log("EXPO LOCATION RES (CurrentPosition):", loc);
                     initialLat = loc.coords.latitude;
                     initialLng = loc.coords.longitude;
                 }
@@ -581,6 +955,24 @@ export default function FormScreen({ route, navigation }) {
             // Generar ID para cada campo ID que esté vacío
             const updatedFormData = { ...formData };
             let hasChanges = false;
+            
+            // Si el campo ID principal no está en la lista de fields, lo agregamos internamente para addItem
+            const sheetIdField = {
+                'clients': 'ID_Cliente',
+                'vehiculos': 'ID_Vehiculo',
+                'orders': 'ID_Orden',
+                'services': 'ID_Servicio',
+                'tecnicos': 'ID_Tecnico',
+                'citas': 'ID_Cita',
+                'rescates': 'IdRescate',
+                'catalog': fields?.includes('Modelo') ? 'ID_Modelo' : 'ID_Marca',
+                'productos': 'IDproducto'
+            }[dataKey];
+
+            if (sheetIdField && !formData[sheetIdField]) {
+                updatedFormData[sheetIdField] = generateUniversalId(sheetIdField, dataKey);
+                hasChanges = true;
+            }
 
             fields?.forEach(field => {
                 if (isIdField(field) && !formData[field]) {
@@ -591,7 +983,7 @@ export default function FormScreen({ route, navigation }) {
 
             if (hasChanges) setFormData(updatedFormData);
         }
-    }, [allData, dataKey, fields, isEdit, item, prefill]);
+    }, [allData, dataKey, fields, isEdit]);
 
     const handleSave = async (stayInFormForModel = false) => {
         // Validación básica
@@ -729,11 +1121,22 @@ export default function FormScreen({ route, navigation }) {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleDelete = () => {
+        setAwareOfModels(false);
         setShowDeleteModal(true);
     };
 
     const confirmDelete = async () => {
         if (formData.id) {
+            // Validación especial para Marcas con modelos
+            const isBrand = dataKey === 'catalog' && (title?.toLowerCase().includes('marca') || !formData.ID_Modelo);
+            const associatedModels = isBrand ? 
+                (allData.catalog || []).filter(m => m.ID_Marca === formData.ID_Marca && m.ID_Modelo).length : 0;
+
+            if (associatedModels > 0 && !awareOfModels) {
+                showAlert("Atención", "Esta marca tiene modelos asociados. Debes marcar la confirmación para proceder.");
+                return;
+            }
+
             setIsDeleting(true);
             try {
                 const result = await allData.deleteItem(dataKey, formData.id);
@@ -834,6 +1237,15 @@ export default function FormScreen({ route, navigation }) {
         const newFormData = { ...formData, [field]: value };
 
         const fieldLower = field.toLowerCase();
+        
+        if (fieldLower === 'importar contacto') {
+            const name = option.name || '';
+            const phone = option.phone || '';
+            setFormData(prev => ({ ...prev, Nombre: name, Telefono: phone }));
+            setPickerVisible(false);
+            return;
+        }
+
         if (fieldLower.includes('cliente')) {
             newFormData['Placa'] = '';
             newFormData['Vehículo'] = '';
@@ -1129,12 +1541,43 @@ export default function FormScreen({ route, navigation }) {
                                 <Text style={styles.modalButtonText}>CANCELAR</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.modalButton, styles.modalDelete]}
+                                style={[
+                                    styles.modalButton, 
+                                    styles.modalDelete,
+                                    (dataKey === 'catalog' && (title?.toLowerCase().includes('marca') || !formData.ID_Modelo) && 
+                                     (allData.catalog || []).filter(m => m.ID_Marca === formData.ID_Marca && m.ID_Modelo).length > 0 && 
+                                     !awareOfModels) && { opacity: 0.5 }
+                                ]}
                                 onPress={confirmDelete}
                             >
                                 <Text style={styles.modalButtonText}>ELIMINAR</Text>
                             </TouchableOpacity>
                         </View>
+                        
+                        {dataKey === 'catalog' && (title?.toLowerCase().includes('marca') || !formData.ID_Modelo) && (
+                            (() => {
+                                const models = (allData.catalog || []).filter(m => m.ID_Marca === formData.ID_Marca && m.ID_Modelo);
+                                if (models.length > 0) {
+                                    return (
+                                        <View style={styles.awareContainer}>
+                                            <TouchableOpacity 
+                                                style={styles.checkboxContainer} 
+                                                onPress={() => setAwareOfModels(!awareOfModels)}
+                                            >
+                                                {awareOfModels ? 
+                                                    <CheckSquare size={20} color={Colors.primary} /> : 
+                                                    <Square size={20} color={Colors.textSecondary} />
+                                                }
+                                                <Text style={styles.awareText}>
+                                                    Soy consciente de que esta marca tiene {models.length} modelo(s) asociado(s).
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                }
+                                return null;
+                            })()
+                        )}
                     </View>
                 </View>
             </Modal>
@@ -1182,6 +1625,7 @@ export default function FormScreen({ route, navigation }) {
                                     >
                                         <Text style={styles.pickerOptionText}>{opt[pickerConfig.labelField]}</Text>
                                         {opt.Modelo && <Text style={styles.pickerOptionSubtext}>{opt.Marca} {opt.Modelo}</Text>}
+                                        {opt.phone && <Text style={styles.pickerOptionSubtext}>{opt.phone}</Text>}
                                     </TouchableOpacity>
                                 ))}
 
@@ -1371,7 +1815,14 @@ export default function FormScreen({ route, navigation }) {
                         {/* Header con Buscador Style Uber */}
                         <View style={{ padding: 16, backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border, borderTopLeftRadius: 16, borderTopRightRadius: 16, zIndex: 5000, elevation: 5 }}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-                                <Text style={styles.modalTitle}>¿A dónde vamos?</Text>
+                                <Text style={styles.modalTitle}>
+                                    {mapField?.toLowerCase().includes('partida') || mapField?.toLowerCase().includes('inicio') || mapField?.toLowerCase().includes('taller')
+                                        ? '¿Desde dónde sale el rescate?' 
+                                        : '¿Hacia dónde vamos?'}
+                                </Text>
+                                <View style={{ backgroundColor: Colors.primary + '30', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
+                                    <Text style={{ color: Colors.primary, fontSize: 10, fontWeight: 'bold' }}>MODO PRECISIÓN</Text>
+                                </View>
                                 <TouchableOpacity onPress={() => setMapModalVisible(false)} style={{ padding: 5 }}>
                                     <X size={24} color={Colors.textSecondary} />
                                 </TouchableOpacity>
@@ -1381,20 +1832,25 @@ export default function FormScreen({ route, navigation }) {
                                 <SearchIcon size={20} color={Colors.textSecondary} />
                                 <TextInput
                                     style={{ flex: 1, height: 45, color: Colors.text, paddingHorizontal: 10, fontSize: 15 }}
-                                    placeholder="Buscar dirección (ej: Calle El Conde)..."
+                                    placeholder={mapField?.toLowerCase().includes('partida') || mapField?.toLowerCase().includes('inicio') 
+                                        ? "Busca el punto de salida..." 
+                                        : "Busca el lugar del rescate o destino..."}
                                     placeholderTextColor={Colors.textSecondary}
                                     value={mapSearchQuery}
                                     onChangeText={setMapSearchQuery}
                                     onSubmitEditing={handleSearchAddress}
                                     returnKeyType="search"
                                 />
-                                {mapSearching ? (
-                                    <ActivityIndicator size="small" color={Colors.primary} />
-                                ) : (
-                                    <TouchableOpacity onPress={handleSearchAddress}>
-                                        <Plus size={20} color={Colors.primary} />
+                                {mapSearching || mapLoadingSuggestions ? (
+                                    <ActivityIndicator size="small" color={Colors.primary} style={{ marginRight: 5 }} />
+                                ) : mapSearchQuery ? (
+                                    <TouchableOpacity onPress={() => setMapSearchQuery('')}>
+                                        <X size={18} color={Colors.textSecondary} style={{ marginRight: 5 }} />
                                     </TouchableOpacity>
-                                )}
+                                ) : null}
+                                <TouchableOpacity onPress={handleSearchAddress}>
+                                    <Plus size={20} color={Colors.primary} />
+                                </TouchableOpacity>
                             </View>
 
                             {/* Lista de Sugerencias */}
@@ -1458,19 +1914,41 @@ export default function FormScreen({ route, navigation }) {
                                             latitudeDelta: 0.005,
                                             longitudeDelta: 0.005,
                                         }}
+                                        onPoiClick={(e) => {
+                                            const { placeId, name, coordinate } = e.nativeEvent;
+                                            handleSelectSuggestion({
+                                                place_id: placeId,
+                                                isGoogle: true,
+                                                display_name: name,
+                                                latitude: coordinate.latitude,
+                                                longitude: coordinate.longitude
+                                            });
+                                        }}
                                         onRegionChangeComplete={(region) => {
                                             const newC = { latitude: region.latitude, longitude: region.longitude };
-                                            // Solo actualizar si la diferencia es significante para evitar bucles
-                                            const diffLat = Math.abs(newC.latitude - mapCoords.latitude);
-                                            const diffLng = Math.abs(newC.longitude - mapCoords.longitude);
-                                            if (diffLat > 0.00001 || diffLng > 0.00001) {
-                                                setMapCoords(newC);
-                                                reverseGeocode(newC);
+                                            // Solo actualizar si NO fue una selección manual (de buscador o POI)
+                                            if (!manualSelectionRef.current) {
+                                                const diffLat = Math.abs(newC.latitude - mapCoords.latitude);
+                                                const diffLng = Math.abs(newC.longitude - mapCoords.longitude);
+                                                if (diffLat > 0.00001 || diffLng > 0.00001) {
+                                                    setMapCoords(newC);
+                                                    reverseGeocode(newC);
+                                                }
                                             }
+                                        }}
+                                        onPanDrag={() => {
+                                            manualSelectionRef.current = false; // Usuario arrastró el mapa
                                         }}
                                     />
                                     <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]} pointerEvents="none">
-                                        <MapPin size={48} color="#E53935" fill="#E53935" style={{ marginBottom: 48 }} />
+                                        {/* Crosshair horizontal */}
+                                        <View style={{ position: 'absolute', width: 22, height: 1.5, backgroundColor: 'rgba(229, 57, 53, 0.4)' }} />
+                                        {/* Crosshair vertical */}
+                                        <View style={{ position: 'absolute', width: 1.5, height: 22, backgroundColor: 'rgba(229, 57, 53, 0.4)' }} />
+                                        {/* Punto central de precisión */}
+                                        <View style={{ position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFF', borderWidth: 2, borderColor: '#E53935' }} />
+                                        {/* Icono de Pin ajustado - Lucide MapPin tiene la punta a ~95% del alto */}
+                                        <MapPin size={40} color="#E53935" fill="rgba(229, 57, 53, 0.1)" style={{ marginBottom: 38 }} />
                                     </View>
                                 </View>
                             )}
@@ -1482,8 +1960,8 @@ export default function FormScreen({ route, navigation }) {
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={{ color: Colors.textSecondary, fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 2 }}>Ubicación Seleccionada</Text>
-                                    <Text numberOfLines={2} style={{ color: Colors.text, fontSize: 15, fontWeight: 'bold' }}>
-                                        {mapAddress || 'Buscando dirección...'}
+                                    <Text numberOfLines={2} style={{ color: mapLoadingAddress ? Colors.textSecondary : Colors.text, fontSize: 15, fontWeight: 'bold' }}>
+                                        {mapLoadingAddress ? 'Actualizando dirección...' : mapAddress || 'Buscando dirección...'}
                                     </Text>
                                 </View>
                             </View>
@@ -1642,6 +2120,7 @@ const styles = StyleSheet.create({
     modalActions: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        marginBottom: 12
     },
     modalButton: {
         flex: 1,
@@ -1660,6 +2139,23 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontWeight: 'bold',
         fontSize: 14,
+    },
+    awareContainer: {
+        marginTop: 10,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: Colors.border,
+        width: '100%'
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    awareText: {
+        color: Colors.textSecondary,
+        fontSize: 12,
+        marginLeft: 8,
+        flex: 1
     },
     pickerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
     pickerOption: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: Colors.border },

@@ -54,8 +54,8 @@ export default function GarageScreen({ navigation }) {
             String(v['Detalles del vehiculo'] || '').toLowerCase().includes(search.toLowerCase());
 
         if (filterType === 'Todos') return matchesSearch;
-        if (filterType === 'En Taller') return matchesSearch && (v.estado?.toLowerCase().includes('pendiente') || v.estado?.toLowerCase().includes('proceso'));
-        if (filterType === 'Completados') return matchesSearch && (v.estado?.toLowerCase().includes('completado'));
+        if (filterType === 'Pendiente') return matchesSearch && v.estado?.toLowerCase().includes('pendiente');
+        if (filterType === 'En Proceso') return matchesSearch && v.estado?.toLowerCase().includes('proceso');
         return matchesSearch;
     });
 
@@ -74,7 +74,7 @@ export default function GarageScreen({ navigation }) {
 
     return (
         <View style={styles.container}>
-            <CustomHeader title="ENTRADA / SALIDA" />
+            <CustomHeader title="EN TALLER" />
             <View style={styles.content}>
                 <View style={styles.searchContainer}>
                     <Search size={20} color={Colors.textSecondary} style={{ marginRight: 8 }} />
@@ -91,7 +91,7 @@ export default function GarageScreen({ navigation }) {
                 <View style={styles.filterContainer}>
                     <FlatList
                         horizontal
-                        data={['Todos', 'En Taller', 'Completados']}
+                        data={['Todos', 'Pendiente', 'En Proceso']}
                         keyExtractor={(item) => item}
                         showsHorizontalScrollIndicator={false}
                         renderItem={({ item }) => (

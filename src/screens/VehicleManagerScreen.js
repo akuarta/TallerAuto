@@ -16,8 +16,8 @@ const VehicleItem = ({ vehicle, onPress, onEdit }) => (
             <Text style={styles.plate}>{vehicle.Matricula || 'SIN MATRICULA'}</Text>
             <Text style={styles.model}>{vehicle.Marca} {vehicle.Modelo} ({vehicle['Año de Fabricacion']})</Text>
             <View style={styles.badgeRow}>
-                {vehicle.Color && <Text style={styles.badge}>{vehicle.Color}</Text>}
-                {vehicle.Tipo && <Text style={styles.badge}>{vehicle.Tipo}</Text>}
+                {!!vehicle.Color && <Text style={styles.badge}>{vehicle.Color}</Text>}
+                {!!vehicle.Tipo && <Text style={styles.badge}>{vehicle.Tipo}</Text>}
             </View>
         </View>
         <TouchableOpacity style={styles.editBtn} onPress={onEdit}>
@@ -31,15 +31,17 @@ export default function VehicleManagerScreen({ navigation }) {
     const [search, setSearch] = useState('');
 
     const fields = [
-        'ID Vehiculo',
+        'ID_Vehiculo',
         'Matricula',
         'Marca',
         'Modelo',
         'Año de Fabricacion',
         'Codigo VIN',
         'Color',
-        'Notas',
-        'Cliente'
+        'Tipo',
+        'Motor',
+        'Transmision',
+        'Cliente/Propietario'
     ];
 
     const filteredVehicles = (vehiculos || []).filter(v =>

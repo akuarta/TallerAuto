@@ -35,7 +35,7 @@ import { CustomHeader } from '../components/CustomHeader';
 
 export default function ServiceListScreen({ navigation }) {
     const { services, loading } = useData();
-    const fields = ['IDservicio', 'Servicios', 'costo', 'descripcion', 'tiempo', 'tecnico'];
+    const fields = ['ID_Servicio', 'Servicios', 'costo', 'descripcion', 'tiempo', 'tecnico'];
 
     if (loading) return <View style={styles.container}><Text style={{ color: 'white' }}>Cargando...</Text></View>;
 

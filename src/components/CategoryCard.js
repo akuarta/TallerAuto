@@ -11,7 +11,7 @@ export const CategoryCard = ({ title, subtitle, onPress, icon = <Folder size={24
             </View>
             <View style={styles.info}>
                 <Text style={styles.title}>{title}</Text>
-                {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+                {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
             </View>
             <ChevronRight size={20} color={Colors.textSecondary} />
         </TouchableOpacity>

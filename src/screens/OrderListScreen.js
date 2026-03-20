@@ -13,7 +13,7 @@ export default function OrderListScreen({ navigation }) {
     const [filterStatus, setFilterStatus] = useState('Todos');
 
     // Campos para el formulario de orden
-    const fields = ['IdOrden', 'Fecha', 'Cliente', 'Matricula', 'Detalles del vehiculo', 'Servicios', 'Productos', 'Total', 'Estado'];
+    const fields = ['ID_Orden', 'Fecha Recepcion', 'Cliente', 'Matricula', 'Detalles del vehiculo', 'Estado', 'Total'];
 
     // Estados disponibles para filtro
     const statusOptions = ['Todos', 'Pendientes', 'En Proceso', 'Completada', 'Cancelada'];
