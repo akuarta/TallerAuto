@@ -9,7 +9,7 @@ export const DataProvider = ({ children }) => {
   const [data, setData] = useState({
     catalog: [],
     garage: [],
-    services: [],
+    servicios: [],
     clients: [],
     invoices: [],
     orders: [],
@@ -39,6 +39,7 @@ export const DataProvider = ({ children }) => {
     'clients': ['ID_Cliente'],
     'orders': ['ID_Orden'],
     'invoices': ['Factura', 'ID_Factura', 'ID_Facturacion'],
+    'servicios': ['ID_Servicio'],
   };
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -150,7 +151,7 @@ export const DataProvider = ({ children }) => {
       setData({
         catalog: normalize(result['buscar vehiculos'], 'catalog'),
         garage: normalize(result.GARAGE || result.garage, 'garage'),
-        services: normalize(result.Servicios || result.servicios, 'services'),
+        servicios: normalize(result.Servicios || result.servicios, 'servicios'),
         clients: normalize(result.CLIENTES || result.clientes, 'clients'),
         invoices: normalize(result.Facturacion || result.facturacion, 'invoices'),
         orders: normalize(result.ORDENES || result.ordenes, 'orders'),

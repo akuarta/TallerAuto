@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert, Modal, Platform, KeyboardAvoidingView } from 'react-native';
 import { Colors } from '../constants';
+import { PremiumLoader } from '../components/PremiumLoader';
 import { CustomHeader } from '../components/CustomHeader';
 import { useData } from '../context/DataContext';
 import { Save, X, Lock, Trash2, Calendar, Camera, Plus, Phone, Search as SearchIcon, Star, AlertTriangle, MapPin, CheckSquare, Square } from 'lucide-react-native';
@@ -28,6 +29,7 @@ export default function FormScreen({ route, navigation }) {
 
     // Es edición si tiene un ID (lo que significa que ya existe en la base de datos)
     const isEdit = !!(item && item.id);
+    const cleanTitle = (title || '').replace(/^nuevo\s+/i, '').replace(/^editar\s+/i, '').trim();
 
     // Helper para alertas compatibles con Web
     const showAlert = (title, message, buttons) => {
@@ -64,7 +66,9 @@ export default function FormScreen({ route, navigation }) {
             'facturando': 'InvoicingList'
         };
         const target = mapping[dataKey];
-        if (target) {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else if (target) {
             navigation.navigate(target);
         } else {
             navigation.goBack();
@@ -159,7 +163,9 @@ export default function FormScreen({ route, navigation }) {
         const nextId = maxId + 1;
         
         // Entidades que requieren padding de 4 ceros (ej: CLIE0001)
-        const needsPadding = ['clients', 'vehiculos', 'orders', 'catalog', 'tecnicos', 'services', 'rescates'];
+        const needsPadding = [
+            'clients', 'vehiculos', 'orders', 'catalog', 'tecnicos', 'servicios', 'rescates'
+        ];
         
         if (needsPadding.includes(dKey)) {
             return prefix + pad(nextId, 4);
@@ -961,7 +967,7 @@ export default function FormScreen({ route, navigation }) {
                 'clients': 'ID_Cliente',
                 'vehiculos': 'ID_Vehiculo',
                 'orders': 'ID_Orden',
-                'services': 'ID_Servicio',
+                'servicios': 'ID_Servicio',
                 'tecnicos': 'ID_Tecnico',
                 'citas': 'ID_Cita',
                 'rescates': 'IdRescate',
@@ -986,10 +992,33 @@ export default function FormScreen({ route, navigation }) {
     }, [allData, dataKey, fields, isEdit]);
 
     const handleSave = async (stayInFormForModel = false) => {
-        // Validación básica
-        if (Object.keys(formData).length === 0) {
-            showAlert("Error", "Por favor completa al menos un campo");
+        // Filtrar campos para ver si el usuario realmente escribió algo (ignorando IDs)
+        const userFilledFields = Object.keys(formData).filter(k => 
+            !isIdField(k) && 
+            formData[k] && 
+            formData[k].toString().trim() !== ''
+        );
+
+        if (userFilledFields.length === 0) {
+            showAlert("Formulario Vacío", "Por favor completa al menos un dato antes de guardar.");
             return;
+        }
+
+        // Validación de campos obligatorios según la entidad
+        if (dataKey === 'rescates') {
+            if (!formData.Cliente) {
+                showAlert("Atención", "Selecciona primero un Cliente.");
+                return;
+            }
+            if (!formData.Matricula && !formData.Vehículo) {
+                showAlert("Atención", "Selecciona una matrícula de vehículo.");
+                return;
+            }
+        } else if (dataKey === 'clients') {
+            if (!formData.Nombre) {
+                showAlert("Atención", "El campo 'Nombre' es obligatorio.");
+                return;
+            }
         }
 
         const idField = getIdField();
@@ -1221,7 +1250,14 @@ export default function FormScreen({ route, navigation }) {
             labelField = 'Matricula';
         }
 
-        if (options.length > 0 || fieldLower.includes('vehiculo') || fieldLower.includes('vehículo') || fieldLower.includes('placa') || fieldLower.includes('matricula')) {
+        if (
+            options.length > 0 || 
+            fieldLower.includes('vehiculo') || fieldLower.includes('vehículo') || 
+            fieldLower.includes('placa') || fieldLower.includes('matricula') ||
+            fieldLower.includes('cliente') || fieldLower.includes('tecnico') ||
+            fieldLower.includes('marca') || fieldLower.includes('modelo') ||
+            fieldLower.includes('servicio') || fieldLower.includes('producto')
+        ) {
             setPickerConfig({ field, data: options, labelField });
             setPickerSearchQuery(''); // Resetear búsqueda al abrir
             setPickerVisible(true);
@@ -1293,7 +1329,7 @@ export default function FormScreen({ route, navigation }) {
             style={styles.container}
         >
             <CustomHeader
-                title={isEdit ? `EDITAR ${title}` : `NUEVO ${title}`}
+                title={isEdit ? `EDITAR ${cleanTitle}` : `NUEVO ${cleanTitle}`}
                 showBack={true}
                 leftAction={() => {
                     // Comparar JSONs para detectar cambios reales de forma profunda
@@ -1635,7 +1671,7 @@ export default function FormScreen({ route, navigation }) {
                                     style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
                                     onPress={() => {
                                         setPickerVisible(false);
-                                        navigation.push('Form', {
+                                        navigation.push('FormMain', {
                                             title: 'Cliente',
                                             dataKey: 'clients',
                                             fields: ['DNI', 'Nombre', 'Telefono', 'Direccion', 'Notas', 'Vehículo']
@@ -1652,7 +1688,7 @@ export default function FormScreen({ route, navigation }) {
                                     style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
                                     onPress={() => {
                                         setPickerVisible(false);
-                                        navigation.push('Form', {
+                                        navigation.push('FormMain', {
                                             title: 'Técnico',
                                             dataKey: 'tecnicos',
                                             fields: ['ID_tecnico', 'Nombre', 'Especialidad', 'Telefono', 'Estado']
@@ -1669,7 +1705,7 @@ export default function FormScreen({ route, navigation }) {
                                     style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
                                     onPress={() => {
                                         setPickerVisible(false);
-                                        navigation.push('Form', {
+                                        navigation.push('FormMain', {
                                             title: 'Marca',
                                             dataKey: 'catalog',
                                             fields: ['Marca', 'ID_Marca']
@@ -1687,7 +1723,7 @@ export default function FormScreen({ route, navigation }) {
                                     onPress={() => {
                                         setPickerVisible(false);
                                         const brandVal = formData.Marca || formData.ID_Marca;
-                                        navigation.push('Form', {
+                                        navigation.push('FormMain', {
                                             title: 'Modelo',
                                             dataKey: 'catalog',
                                             prefill: brandVal ? { Marca: brandVal } : {},
@@ -1710,7 +1746,7 @@ export default function FormScreen({ route, navigation }) {
                                         const currentClientIdField = fields.find(f => f.toLowerCase().includes('id_cliente'));
                                         const currentClientId = currentClientIdField ? formData[currentClientIdField] : null;
 
-                                        navigation.push('Form', {
+                                        navigation.push('FormMain', {
                                             title: 'Vehículo',
                                             dataKey: 'vehiculos',
                                             fields: ['Matricula', 'Marca', 'Modelo', 'Año de Fabricacion', 'Color', 'Codigo VIN', 'Notas'],
@@ -1724,6 +1760,40 @@ export default function FormScreen({ route, navigation }) {
                                 >
                                     <Text style={[styles.pickerOptionText, { color: Colors.primary, fontWeight: 'bold' }]}>+ AÑADIR NUEVO VEHÍCULO</Text>
                                     <Text style={styles.pickerOptionSubtext}>Si el vehículo no está en la lista</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {(pickerConfig?.field.toLowerCase().includes('servicio')) && (
+                                <TouchableOpacity
+                                    style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
+                                    onPress={() => {
+                                        setPickerVisible(false);
+                                        navigation.push('FormMain', {
+                                            title: 'Servicio',
+                                            dataKey: 'servicios',
+                                            fields: ['ID_Servicio', 'Servicios', 'costo', 'descripcion', 'tiempo', 'tecnico']
+                                        });
+                                    }}
+                                >
+                                    <Text style={[styles.pickerOptionText, { color: Colors.primary, fontWeight: 'bold' }]}>+ AÑADIR NUEVO SERVICIO</Text>
+                                    <Text style={styles.pickerOptionSubtext}>Si el servicio no está en la lista de tarifas</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {(pickerConfig?.field.toLowerCase().includes('producto') || pickerConfig?.field.toLowerCase().includes('repuesto')) && (
+                                <TouchableOpacity
+                                    style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
+                                    onPress={() => {
+                                        setPickerVisible(false);
+                                        navigation.push('FormMain', {
+                                            title: 'Producto',
+                                            dataKey: 'productos',
+                                            fields: ['ID_Producto', 'Producto', 'Precio', 'Stock', 'Ubicacion']
+                                        });
+                                    }}
+                                >
+                                    <Text style={[styles.pickerOptionText, { color: Colors.primary, fontWeight: 'bold' }]}>+ AÑADIR NUEVO PRODUCTO</Text>
+                                    <Text style={styles.pickerOptionSubtext}>Si el repuesto no está en el inventario</Text>
                                 </TouchableOpacity>
                             )}
                         </ScrollView>
@@ -1802,7 +1872,7 @@ export default function FormScreen({ route, navigation }) {
             <Modal transparent={true} visible={syncing || isDeleting}>
                 <View style={styles.syncOverlay}>
                     <View style={styles.syncCard}>
-                        <ActivityIndicator size="large" color={Colors.primary} />
+                        <PremiumLoader size={60} />
                         <Text style={styles.syncText}>Sincronizando con la nube...</Text>
                     </View>
                 </View>
@@ -1842,7 +1912,7 @@ export default function FormScreen({ route, navigation }) {
                                     returnKeyType="search"
                                 />
                                 {mapSearching || mapLoadingSuggestions ? (
-                                    <ActivityIndicator size="small" color={Colors.primary} style={{ marginRight: 5 }} />
+                                    <PremiumLoader size={20} />
                                 ) : mapSearchQuery ? (
                                     <TouchableOpacity onPress={() => setMapSearchQuery('')}>
                                         <X size={18} color={Colors.textSecondary} style={{ marginRight: 5 }} />

@@ -1,9 +1,10 @@
 import React, { useRef, useState, useCallback } from 'react';
 import {
-    View, StyleSheet, ActivityIndicator, Text, TouchableOpacity,
+    View, StyleSheet, Text, TouchableOpacity,
     Platform, FlatList, Modal, SafeAreaView
 } from 'react-native';
 import { Colors } from '../constants';
+import { PremiumLoader } from '../components/PremiumLoader';
 import { ArrowLeft, ArrowRight, RefreshCw, Globe, Home, List, X, Clock, ChevronRight } from 'lucide-react-native';
 
 let WebView = null;
@@ -210,15 +211,15 @@ export default function CharmWebScreen() {
                 `}
                 renderLoading={() => (
                     <View style={styles.loader}>
-                        <ActivityIndicator size="large" color={Colors.primary} />
+                        <PremiumLoader size={50} />
                     </View>
                 )}
             />
 
             {loading && (
                 <View style={styles.loaderOverlay}>
-                    <ActivityIndicator size="large" color={Colors.primary} />
-                    <Text style={styles.loaderText}>Cargando...</Text>
+                    <PremiumLoader size={60} />
+                    <Text style={styles.loaderText}>Sincronizando con Charm.li...</Text>
                 </View>
             )}
 

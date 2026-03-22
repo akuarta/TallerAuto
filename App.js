@@ -73,6 +73,15 @@ function VehicleReferenceStack() {
   );
 }
 
+const FinalFormStack = createStackNavigator();
+function FormNavigator() {
+  return (
+    <FinalFormStack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: Colors.background } }}>
+      <FinalFormStack.Screen name="FormMain" component={FormScreen} />
+    </FinalFormStack.Navigator>
+  );
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -198,7 +207,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Form"
-        component={FormScreen}
+        component={FormNavigator}
         options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
       <Tab.Screen
@@ -222,6 +231,8 @@ function MainStack() {
       cardStyle: { backgroundColor: Colors.background }
     }}>
       <Stack.Screen name="Tabs" component={MainTabs} />
+      <Stack.Screen name="GenericDetails" component={GenericDetailsScreen} options={{ unmountOnBlur: true }} />
+      <Stack.Screen name="VehicleTechnicalDetail" component={VehicleTechnicalDetailScreen} options={{ unmountOnBlur: true }} />
     </Stack.Navigator>
   );
 }

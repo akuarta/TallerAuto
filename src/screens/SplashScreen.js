@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
 import { Colors } from '../constants';
 import { Wrench } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
+import { PremiumLoader } from '../components/PremiumLoader';
 
 const { width, height } = Dimensions.get('window');
 
@@ -41,8 +42,8 @@ export default function SplashScreen() {
                 <Text style={styles.subtitle}>Gestión Automotriz Inteligente</Text>
 
                 <View style={styles.loaderContainer}>
-                    <ActivityIndicator size="large" color={Colors.primary} />
-                    <Text style={styles.loadingText}>Cargando recursos...</Text>
+                    <PremiumLoader size={70} />
+                    <Text style={styles.loadingText}>Sincronizando sistema...</Text>
                 </View>
             </Animated.View>
 

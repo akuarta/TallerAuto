@@ -1,14 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Image, ActivityIndicator, Animated, BackHandler } from 'react-native';
+import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Image, Animated, BackHandler } from 'react-native';
 import { Colors } from '../constants';
+import { PremiumLoader } from '../components/PremiumLoader';
 import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
 import { Search, ChevronRight, ChevronLeft, LayoutGrid, FileText, Wrench, Settings as SettingsIcon, Zap, Info, RefreshCw, ChevronDown } from 'lucide-react-native';
 import { CustomHeader } from '../components/CustomHeader';
 import CharmAPI from '../services/CharmAPI';
 
 // ─── groupItems ──────────────────────────────────────────────────────────
-// Convierte lista plana [group, item, item, group, item...]
-// en árbol [{type:'group', children:[...]}, {type:'item'}, ...]
 function groupItems(items) {
     const result = [];
     const stack = [{ level: -1, children: result }];
@@ -17,16 +16,13 @@ function groupItems(items) {
         const node = { ...item, children: [], expanded: false };
         const itemLevel = item.level !== undefined ? item.level : 0;
         
-        // Quitar del stack hasta encontrar a un padre con nivel estrictamente menor
         while (stack.length > 1 && stack[stack.length - 1].level >= itemLevel) {
             stack.pop();
         }
         
-        // Agregar nodo a los hijos del padre actual
         const parent = stack[stack.length - 1];
         parent.children.push(node);
         
-        // Si es un grupo, se convierte en un posible padre para los siguientes nodos
         if (node.type === 'group') {
             stack.push({ level: itemLevel, children: node.children });
         }
@@ -35,7 +31,6 @@ function groupItems(items) {
     return result;
 }
 
-// ─── VehicleSearchScreen ─────────────────────────────────────────────────
 export default function VehicleSearchScreen({ navigation }) {
     const [search,    setSearch]    = useState('');
     const [isSyncing, setIsSyncing] = useState(false);
@@ -46,9 +41,8 @@ export default function VehicleSearchScreen({ navigation }) {
 
     const fadeAnim = useRef(new Animated.Value(1)).current;
 
-    // ── PREVENIR SALIDA SI HAY HISTORIAL (Solución Universal) ──────────
     usePreventRemove(history.length > 0, ({ action }) => {
-        handleGoBack(); // En lugar de salir, retrocedemos un paso en el historial
+        handleGoBack();
     });
 
     const currentLevel = useMemo(() => {
@@ -109,15 +103,12 @@ export default function VehicleSearchScreen({ navigation }) {
         else setHistory(history.slice(0, index + 1));
     };
 
-    // Filtrado (busca en nombres de items y grupos)
     const filteredItems = items.filter(i =>
         i.name.toLowerCase().includes(search.toLowerCase())
     );
 
-    // Árbol agrupado listo para render
     const grouped = groupItems(filteredItems);
 
-    // ── Iconos dinámicos ────────────────────────────────────────────────
     const getBrandLogo = (name) => {
         const slug = name.toLowerCase().trim().replace(/\s+/g, '-');
         return `https://www.carlogos.org/car-logos/${slug}-logo.png`;
@@ -139,11 +130,8 @@ export default function VehicleSearchScreen({ navigation }) {
         return <View style={[styles.miniIcon, { backgroundColor: Colors.background }]}><LayoutGrid size={16} color={Colors.textSecondary} /></View>;
     };
 
-    // ── Render de un nodo (Recursivo) ─────────────────────────
     const renderNode = (node, key, nestLevel = 0) => {
-        // Cálculo del margen izquierdo según nivel (máximo 4 niveles para evitar rebase)
         const indentLength = Math.min(nestLevel * 20, 80);
-
         if (node.type === 'group') {
             const isOpen = !!expandedGroups[node.name];
             return (
@@ -160,14 +148,10 @@ export default function VehicleSearchScreen({ navigation }) {
                             {node.name}
                         </Text>
                     </TouchableOpacity>
-
-                    {/* Hijos: Renderizado recursivo si está abierto */}
                     {isOpen && node.children.map((child, ci) => renderNode(child, `${key}-${ci}`, nestLevel + 1))}
                 </View>
             );
         }
-
-        // Item 
         return (
             <TouchableOpacity
                 key={key}
@@ -183,7 +167,6 @@ export default function VehicleSearchScreen({ navigation }) {
         );
     };
 
-    // ── JSX ─────────────────────────────────────────────────────────────
     return (
         <View style={styles.container}>
             <CustomHeader
@@ -191,10 +174,9 @@ export default function VehicleSearchScreen({ navigation }) {
                 leftAction={handleGoBack}
                 leftIcon={<ChevronLeft size={24} color="#FFF" />}
                 rightAction={() => loadPath(currentLevel.path)}
-                rightIcon={isSyncing ? <ActivityIndicator size="small" color="#FFF" /> : <RefreshCw size={20} color="#FFF" />}
+                rightIcon={isSyncing ? <PremiumLoader size={20} color="#FFF" /> : <RefreshCw size={20} color="#FFF" />}
             />
 
-            {/* Migas de pan */}
             <View style={styles.pathBar}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pathContent}>
                     <TouchableOpacity onPress={() => jumpToHistory(-1)}>
@@ -213,10 +195,9 @@ export default function VehicleSearchScreen({ navigation }) {
                 </ScrollView>
             </View>
 
-            {/* Contenido principal */}
             {isSyncing && items.length === 0 ? (
                 <View style={styles.loader}>
-                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <PremiumLoader size={60} />
                     <Text style={styles.loaderText}>CONECTANDO CON EL SERVIDOR...</Text>
                     <Text style={styles.loaderSubText}>{currentLevel.path || 'Root'}</Text>
                 </View>
@@ -231,8 +212,6 @@ export default function VehicleSearchScreen({ navigation }) {
             ) : (
                 <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
                     <ScrollView contentContainerStyle={styles.scroll}>
-
-                                        {/* Nivel raíz: grid de marcas */}
                         {history.length === 0 ? (
                             <View style={styles.brandsGrid}>
                                 {grouped.map((item, idx) => (
@@ -250,7 +229,6 @@ export default function VehicleSearchScreen({ navigation }) {
                             </View>
                         ) : (
                             <>
-                                {/* Buscador */}
                                 <View style={styles.searchSection}>
                                     <View style={styles.searchBox}>
                                         <Search size={18} color={Colors.textSecondary} />
@@ -263,13 +241,10 @@ export default function VehicleSearchScreen({ navigation }) {
                                         />
                                     </View>
                                 </View>
-
-                                {/* Lista con acordeón anidado */}
                                 {grouped.map((node, idx) => renderNode(node, `root-${idx}`, 0))}
                             </>
                         )}
 
-                        {/* Sin resultados */}
                         {!isSyncing && filteredItems.length === 0 && (
                             <View style={styles.center}>
                                 <Info size={40} color={Colors.border} />
@@ -287,7 +262,6 @@ export default function VehicleSearchScreen({ navigation }) {
     );
 }
 
-// ── Styles ───────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container:   { flex: 1, backgroundColor: Colors.background },
     center:      { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
@@ -296,55 +270,28 @@ const styles = StyleSheet.create({
     loader:      { flex: 1, justifyContent: 'center', alignItems: 'center' },
     loaderText:  { marginTop: 15, color: Colors.textSecondary, fontSize: 11, fontWeight: 'bold', letterSpacing: 1.5 },
     loaderSubText: { color: Colors.border, fontSize: 10, marginTop: 4 },
-
-    // Path bar
-    pathBar:     { backgroundColor: Colors.card, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
-    pathContent: { paddingHorizontal: 16 },
-    pathLink:    { fontSize: 13, color: Colors.textSecondary, marginRight: 8 },
-    pathActive:  { color: Colors.primary, fontWeight: 'bold' },
-
-    // Search
-    searchSection: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: Colors.card },
-    searchBox:     { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, borderRadius: 25, paddingHorizontal: 15, height: 44, borderWidth: 1, borderColor: Colors.border },
-    input:         { flex: 1, marginLeft: 10, color: Colors.text, fontSize: 15 },
-
-    // Brands grid
-    brandsGrid:      { flexDirection: 'row', flexWrap: 'wrap', padding: 12 },
-    brandCard:       { width: '31%', backgroundColor: Colors.card, borderRadius: 16, padding: 15, alignItems: 'center', marginBottom: 10, alignSelf: 'flex-start', marginHorizontal: '1%', borderWidth: 1, borderColor: Colors.border },
-    brandLogoCircle: {
-        width: 64,
-        height: 64,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 32,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 10,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 3,
-    },
-    brandLogo:       { width: 44, height: 44 },
-    brandName:       { fontSize: 12, fontWeight: 'bold', color: Colors.text, textAlign: 'center' },
-
-    // List items
-    listItem:    { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: Colors.border },
-    indentedItem: { paddingLeft: 36, backgroundColor: Colors.background },
-    listIconBox: {},
-    miniIcon:    { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 0 },
-    listText:    { flex: 1, marginLeft: 12, fontSize: 14, color: Colors.text, fontWeight: '500' },
-
-    // Group accordion headers  ▶ / ▼ Nombre
-    groupHeader:     { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: Colors.border, marginTop: 4, opacity: 0.9 },
-    groupArrow:      { marginRight: 8 },
-    groupHeaderText: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.text },
-
-    // Misc
-    errorText:     { marginTop: 15, textAlign: 'center', color: Colors.textSecondary, fontSize: 14 },
-    noResultsText: { marginTop: 15, color: Colors.textSecondary, fontSize: 14 },
-    retryBtn:      { backgroundColor: Colors.primary, paddingHorizontal: 25, paddingVertical: 12, borderRadius: 30, marginTop: 15, elevation: 3 },
-    retryBtnText:  { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
-    pathDebug:     { fontSize: 10, color: Colors.border, marginTop: 10 },
+    pathBar: { backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
+    pathContent: { paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center' },
+    pathLink: { color: Colors.textSecondary, fontSize: 13 },
+    pathActive: { color: Colors.primary, fontWeight: 'bold' },
+    searchSection: { padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.border },
+    searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, borderRadius: 10, paddingHorizontal: 10, height: 40, borderWidth: 1, borderColor: Colors.border },
+    input: { flex: 1, marginLeft: 10, color: Colors.text },
+    brandsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 8, justifyContent: 'space-between' },
+    brandCard: { width: '30%', backgroundColor: Colors.card, borderRadius: 12, padding: 12, marginBottom: 12, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+    brandLogoCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+    brandLogo: { width: 45, height: 45 },
+    brandName: { color: Colors.text, fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
+    groupHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
+    groupArrow: { marginRight: 10 },
+    groupHeaderText: { color: Colors.text, fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase' },
+    listItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
+    listIconBox: { marginRight: 12 },
+    miniIcon: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+    listText: { flex: 1, color: Colors.text, fontSize: 14 },
+    errorText: { color: Colors.textSecondary, textAlign: 'center', marginTop: 10 },
+    retryBtn: { marginTop: 20, backgroundColor: Colors.primary, paddingHorizontal: 25, paddingVertical: 12, borderRadius: 25 },
+    retryBtnText: { color: '#FFF', fontWeight: 'bold' },
+    noResultsText: { color: Colors.textSecondary, marginTop: 15 },
+    pathDebug: { fontSize: 9, color: Colors.border, marginTop: 5 },
 });
-

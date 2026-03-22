@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Alert } from 'react-native';
 import { Colors } from '../constants';
+import { PremiumLoader } from '../components/PremiumLoader';
 import { CustomHeader } from '../components/CustomHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
@@ -228,7 +229,7 @@ export default function RescueScreen({ route, navigation }) {
                             <Text style={styles.infoLabel}>Lugar del Rescate</Text>
                             <Text style={styles.infoValue}>{rescueInfo.lugar}</Text>
                             {loading ? (
-                                <ActivityIndicator size="small" color={Colors.primary} style={{ alignSelf: 'flex-start', marginTop: 5 }} />
+                                <PremiumLoader size={20} />
                             ) : errorMsg ? (
                                 <Text style={styles.errorText}>{errorMsg}</Text>
                             ) : location ? (
@@ -282,7 +283,7 @@ export default function RescueScreen({ route, navigation }) {
                         <View style={styles.webMapPlaceholder}>
                             {loading ? (
                                 <View style={{ alignItems: 'center' }}>
-                                    <ActivityIndicator size="large" color={Colors.primary} />
+                                    <PremiumLoader size={50} />
                                     <Text style={[styles.webMapText, { marginTop: 15, fontWeight: 'bold' }]}>
                                         Calculando trayectoria...
                                     </Text>
