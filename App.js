@@ -37,7 +37,9 @@ import RescueListScreen from './src/screens/RescueListScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import VehicleTechnicalDetailScreen from './src/screens/VehicleTechnicalDetailScreen';
 
-import { Home, ClipboardList, List, Wrench, LayoutDashboard, Search, MapPin, Settings } from 'lucide-react-native';
+import CharmWebScreen from './src/screens/CharmWebScreen';
+
+import { Home, ClipboardList, List, Wrench, LayoutDashboard, Search, MapPin, Settings, Globe } from 'lucide-react-native';
 import SplashScreen from './src/screens/SplashScreen';
 import { useData } from './src/context/DataContext';
 
@@ -74,7 +76,7 @@ function VehicleReferenceStack() {
 function MainTabs() {
   return (
     <Tab.Navigator
-      backBehavior="initialRoute"
+      backBehavior="history"
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
@@ -97,12 +99,17 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
+        name="CharmWeb"
+        component={CharmWebScreen}
+        options={{
+          tabBarIcon: ({ color }) => <Globe color={color} size={24} />,
+          tabBarLabel: 'MANUALES',
+        }}
+      />
+      <Tab.Screen
         name="Services"
         component={ServiceListScreen}
-        options={{
-          tabBarIcon: ({ color }) => <Wrench color={color} size={24} />,
-          tabBarLabel: 'SERVICIOS'
-        }}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
       <Tab.Screen
         name="Orders"
@@ -115,18 +122,12 @@ function MainTabs() {
       <Tab.Screen
         name="Billing"
         component={InvoiceListScreen}
-        options={{
-          tabBarIcon: ({ color }) => <List color={color} size={24} />,
-          tabBarLabel: 'FACTURACION'
-        }}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
       <Tab.Screen
         name="Garage"
         component={GarageScreen}
-        options={{
-          tabBarIcon: ({ color }) => <LayoutDashboard color={color} size={24} />,
-          tabBarLabel: 'GARAGE'
-        }}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
       <Tab.Screen
         name="Rescue"
@@ -157,9 +158,32 @@ function MainTabs() {
         options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
       <Tab.Screen
+        name="VehicleCategories"
+        component={VehicleReferenceStack}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
         name="InvoicingList"
         component={GenericListScreen}
         initialParams={{ title: 'Facturando', dataKey: 'facturando' }}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="Inventory"
+        component={GenericListScreen}
+        initialParams={{ title: 'Productos / Inventario', dataKey: 'productos' }}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="Entradas"
+        component={GenericListScreen}
+        initialParams={{ title: 'Entradas de Taller', dataKey: 'entradas' }}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="Salidas"
+        component={GenericListScreen}
+        initialParams={{ title: 'Salidas de Taller', dataKey: 'salidas' }}
         options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
       <Tab.Screen

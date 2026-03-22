@@ -6,25 +6,20 @@ import { Colors } from '../constants';
 
 export function CustomDrawerContent(props) {
     const menuItems = [
-        { label: 'CITAS', icon: <Calendar size={22} color={Colors.textSecondary} />, navigateTo: 'AppointmentList', inTabs: true },
+        { label: 'CALENDARIO/CITAS', icon: <Calendar size={22} color={Colors.textSecondary} />, navigateTo: 'AppointmentList', inTabs: true },
         { label: 'CLIENTES', icon: <Users size={22} color={Colors.textSecondary} />, navigateTo: 'ClientList', inTabs: true },
-        { label: 'ÓRDENES', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Orders', inTabs: true },
-        { label: 'DETALLE DE FACTURA', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'GenericDetails', inTabs: true },
-        { label: 'ENTRADAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Entradas', inTabs: true },
-        { label: 'Facturando', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'InvoicingList', inTabs: true },
-        { label: 'FACTURAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Billing', inTabs: true },
-        { label: 'FOTOS ENTRADA', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'FotosEntrada', inTabs: true },
-        { label: 'FOTOS SALIDAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'FotosSalidas', inTabs: true },
-        { label: 'PRODUCTOS', icon: <Package size={22} color={Colors.textSecondary} />, navigateTo: 'Productos', inTabs: true },
-        { label: 'SALIDAS', icon: <ArrowUpRight size={22} color={Colors.textSecondary} />, navigateTo: 'Salidas', inTabs: true },
-        { label: 'TECNICOS', icon: <Wrench size={22} color={Colors.textSecondary} />, navigateTo: 'TechnicianList', inTabs: true },
-        { label: 'Herramientas', icon: <Wrench size={22} color={Colors.textSecondary} />, navigateTo: 'Herramientas', inTabs: true },
-        { label: 'Vehículos', icon: <Users size={22} color={Colors.textSecondary} />, navigateTo: 'VehicleList', inTabs: true },
-        { label: 'CATALOGO', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'Catálogo', inTabs: true },
-        { label: 'About', icon: <Info size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard', inTabs: true },
-        { label: 'Share', icon: <Share2 size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard', inTabs: true },
-        { label: 'App Gallery', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'Dashboard', inTabs: true },
-        { label: 'CONFIGURACIÓN', icon: <Settings size={22} color={Colors.primary} />, navigateTo: 'Settings', inTabs: true },
+        { label: 'ÓRDENES ACTIVAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Orders', inTabs: true },
+        { label: 'EN TALLER (ENTRADAS)', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Entradas', inTabs: true },
+        { label: 'FACTURANDO', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'InvoicingList', inTabs: true },
+        { label: 'FACTURAS EMITIDAS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'Billing', inTabs: true },
+        { label: 'INVENTARIO/PRODUCTOS', icon: <Package size={22} color={Colors.textSecondary} />, navigateTo: 'Inventory', inTabs: true },
+        { label: 'SALIDAS FINALIZADAS', icon: <ArrowUpRight size={22} color={Colors.textSecondary} />, navigateTo: 'Salidas', inTabs: true },
+        { label: 'TÉCNICOS', icon: <Wrench size={22} color={Colors.textSecondary} />, navigateTo: 'TechnicianList', inTabs: true },
+        { label: 'VEHICULOS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'VehicleList', inTabs: true },
+        { label: 'MANUALES CHARM', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'CharmWeb', inTabs: true },
+        { label: 'BUSCADOR TÉCNICO', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'VehicleSearch', inTabs: true },
+        { label: 'CATÁLOGO MARCAS', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'VehicleCategories', inTabs: true },
+        { label: 'AJUSTES', icon: <Settings size={22} color={Colors.primary} />, navigateTo: 'Settings', inTabs: true },
     ];
 
     const handleNavigation = (item) => {

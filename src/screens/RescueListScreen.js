@@ -3,14 +3,14 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, Alert } f
 import { Colors } from '../constants';
 import { CustomHeader } from '../components/CustomHeader';
 import { useData } from '../context/DataContext';
-import { MapPin, Clock, ChevronRight, Filter, AlertCircle, CheckCircle2, Timer, XCircle, ArrowDownCircle, ArrowUpCircle } from 'lucide-react-native';
+import { MapPin, Clock, ChevronRight, Filter, AlertCircle, CheckCircle2, Timer, XCircle, ArrowDownCircle, ArrowUpCircle, Plus } from 'lucide-react-native';
 import { FAB } from '../components/FAB';
 
 const STATUS_CONFIG = {
-    'Pendiente': { color: '#FF9800', icon: AlertCircle, bg: '#FFF3E0' },
-    'En Proceso': { color: '#2196F3', icon: Timer, bg: '#E3F2FD' },
-    'Finalizado': { color: '#4CAF50', icon: CheckCircle2, bg: '#E8F5E9' },
-    'Cancelado': { color: '#F44336', icon: XCircle, bg: '#FFEBEE' },
+    'Pendiente': { color: '#FF9800', icon: AlertCircle, bg: '#FF980020' },
+    'En Proceso': { color: '#2196F3', icon: Timer, bg: '#2196F320' },
+    'Finalizado': { color: '#4CAF50', icon: CheckCircle2, bg: '#4CAF5020' },
+    'Cancelado': { color: '#F44336', icon: XCircle, bg: '#F4433620' },
 };
 
 export default function RescueListScreen({ navigation }) {
@@ -142,6 +142,14 @@ export default function RescueListScreen({ navigation }) {
             />
 
             <FAB 
+                icon={
+                    <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                        <MapPin size={28} color="white" />
+                        <View style={{ position: 'absolute', right: -6, top: -4, backgroundColor: Colors.primary, borderRadius: 10, padding: 1 }}>
+                            <Plus size={14} color="white" strokeWidth={3} />
+                        </View>
+                    </View>
+                }
                 onPress={() => navigation.navigate('Form', { 
                     title: 'Nuevo Rescate', 
                     dataKey: 'rescates', 

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 import { Colors } from '../constants';
-import { ClipboardList, Car, Users, FileCheck, Warehouse, Calendar, Wrench, Search, MapPin } from 'lucide-react-native';
+import { ClipboardList, Car, Users, FileCheck, Warehouse, Calendar, Wrench, Search, MapPin, Plus } from 'lucide-react-native';
 import { CustomHeader } from '../components/CustomHeader';
 import { useData } from '../context/DataContext';
 import { FAB } from '../components/FAB';
@@ -105,6 +105,14 @@ export default function DashboardScreen({ navigation }) {
             </ScrollView>
             
             <FAB 
+                icon={
+                    <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                        <MapPin size={28} color="white" />
+                        <View style={{ position: 'absolute', right: -6, top: -4, backgroundColor: Colors.primary, borderRadius: 10, padding: 1 }}>
+                            <Plus size={14} color="white" strokeWidth={3} />
+                        </View>
+                    </View>
+                }
                 onPress={() => navigation.navigate('Form', { 
                     title: 'Nuevo Rescate', 
                     dataKey: 'rescates', 

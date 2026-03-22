@@ -5,14 +5,17 @@ import { Colors } from '../constants';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export const CustomHeader = ({ title, showBack = null, leftAction = null, leftIcon = null, rightAction = null, rightIcon = null }) => {
+export const CustomHeader = ({ title, showBack = null, leftAction = null, onLeftPress = null, leftIcon = null, rightAction = null, rightIcon = null }) => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
-    const canGoBack = leftAction ? true : (showBack !== null ? showBack : navigation.canGoBack());
+    
+    // Si se provee onLeftPress o leftAction, entonces podemos "volver" o hacer la acción.
+    const actualLeftAction = leftAction || onLeftPress;
+    const canGoBack = actualLeftAction ? true : (showBack !== null ? showBack : navigation.canGoBack());
 
     const handleLeftPress = () => {
-        if (leftAction) {
-            leftAction();
+        if (actualLeftAction) {
+            actualLeftAction();
         } else if (canGoBack) {
             // Si estamos dentro de un tab oculto (como Form), forzar volver al stack principal si goBack falla
             navigation.goBack();
@@ -26,11 +29,18 @@ export const CustomHeader = ({ title, showBack = null, leftAction = null, leftIc
             <View style={styles.header}>
                 {/* Botón izquierdo */}
                 <TouchableOpacity style={styles.sideBtn} onPress={handleLeftPress}>
-                    {leftIcon ? leftIcon : (
-                        canGoBack
+                    {(() => {
+                        if (leftIcon) {
+                            if (typeof leftIcon === 'string') {
+                                if (leftIcon === 'menu') return <Menu size={24} color={Colors.text} />;
+                                if (leftIcon === 'arrow-left') return <ArrowLeft size={24} color={Colors.text} />;
+                            }
+                            return leftIcon;
+                        }
+                        return canGoBack
                             ? <ArrowLeft size={24} color={Colors.text} />
-                            : <Menu size={24} color={Colors.text} />
-                    )}
+                            : <Menu size={24} color={Colors.text} />;
+                    })()}
                 </TouchableOpacity>
 
                 {/* Título centrado */}

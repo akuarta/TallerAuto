@@ -1,194 +1,222 @@
 /**
- * CharmAPI.js - Versión Turbo-Proactiva (v10)
- * Soporte para Carpetas Virtuales y corrección de 404 en niveles profundos.
+ * CharmAPI.js - V32 PROXY OBLIGATORIO PARA WEB
  */
 
 const BASE_URL = 'https://charm.li/';
-
-const PROXIES = [
-    'https://corsproxy.io/?',
-    'https://api.allorigins.win/raw?url=',
-    'https://api.codetabs.com/v1/proxy?quest='
-];
-
 const HTML_CACHE = new Map();
 
+// Proxy CORS para saltar la restricción del navegador
+const CORS_PROXY = "https://corsproxy.io/?";
+
+/**
+ * fetchHTML - Obtiene el contenido HTML usando un Proxy CORS para evitar bloqueos.
+ */
 async function fetchHTML(targetUrl) {
     if (HTML_CACHE.has(targetUrl)) return HTML_CACHE.get(targetUrl);
 
-    let urlToFetch = targetUrl.replace('http://', 'https://');
-    if (!urlToFetch.endsWith('/') && !urlToFetch.split('/').pop().includes('.')) {
-        urlToFetch += '/';
+    // 1. Normalizar URL
+    let finalUrl = targetUrl.toString().replace('http://', 'https://');
+    if (!finalUrl.endsWith('/') && !finalUrl.split('/').pop().includes('.')) {
+        finalUrl += '/';
     }
 
-    const fetchWithProxy = async (proxyBase) => {
-        // Aseguramos que la URL esté decodificada antes de mandarla al proxy para evitar doble encode (%2520)
-        const rawUrl = decodeURIComponent(urlToFetch);
-        const finalUrl = `${proxyBase}${encodeURIComponent(rawUrl)}`;
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 9000); 
+    // 2. Aplicar Proxy CORS (Indispensable para localhost:8081)
+    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(finalUrl)}`;
 
-        const response = await fetch(finalUrl, { signal: controller.signal });
-        clearTimeout(id);
-        if (!response.ok) throw new Error(`Proxy Fail: ${response.status}`);
-        const text = await response.text();
-        if (text.length < 200) throw new Error('Empty');
-        return text;
-    };
-
+    console.log(`[CharmAPI] 🛰️ FETCH VIA PROXY: ${finalUrl}`);
+    
     try {
-        const race = await Promise.any([
-            (async () => { const html = await fetchWithProxy(PROXIES[0]); return { html, proxy: 'CorsProxy' }; })(),
-            (async () => { const html = await fetchWithProxy(PROXIES[1]); return { html, proxy: 'AllOrigins' }; })()
-        ]);
-        console.log(`[CharmAPI] ⚡ Winner: ${race.proxy} (${targetUrl})`);
-        HTML_CACHE.set(targetUrl, race.html);
-        return race.html;
-    } catch (error) {
-        try {
-            console.warn("[CharmAPI] Fallback al Proxy 3...");
-            const fallback = await fetchWithProxy(PROXIES[2]);
-            HTML_CACHE.set(targetUrl, fallback);
-            return fallback;
-        } catch (e) {
-            throw new Error("Sin conexión al catálogo.");
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+        const response = await fetch(proxyUrl, { 
+            signal: controller.signal,
+            headers: {
+                'Accept': 'text/html',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            throw new Error(`Servidor respondió con error ${response.status}`);
         }
+
+        const text = await response.text();
+        if (text.length < 100) {
+            throw new Error('La respuesta parece estar vacía o bloqueada');
+        }
+
+        HTML_CACHE.set(targetUrl, text);
+        return text;
+    } catch (err) {
+        console.error(`[CharmAPI] ❌ Error de red: ${err.message}`);
+        throw err;
     }
 }
 
 class CharmAPI {
+    /**
+     * Obtiene los elementos de una "carpeta" (nivel de navegación)
+     */
     static async getFolderItems(relativePath) {
         try {
-            const cleanRelPath = (relativePath || '').replace(/^\/|\/$/g, '');
+            const cleanRelPath = decodeURIComponent(relativePath || '').replace(/^\/|\/$/g, '');
+            const fullUrl = `${BASE_URL}${cleanRelPath}${cleanRelPath ? '/' : ''}`;
             
-            // 🛑 CARPETA VIRTUAL: Si el contenido ya fue extraído de un nivel superior, lo usamos.
-            if (HTML_CACHE.has(cleanRelPath)) {
-                console.log(`[CharmAPI] 🧠 Renderizando Carpeta Virtual: ${cleanRelPath}`);
-                return this.parseHTMLContent(HTML_CACHE.get(cleanRelPath), cleanRelPath);
+            // Usar cache de sesión
+            if (HTML_CACHE.has(fullUrl)) {
+                return this.parseHTMLContent(HTML_CACHE.get(fullUrl), cleanRelPath);
             }
 
-            const fullUrl = `${BASE_URL}${cleanRelPath}${cleanRelPath ? '/' : ''}`;
-            console.log(`[CharmAPI] 🛰️ Navegando a: ${cleanRelPath || 'RAÍZ'}`);
             const html = await fetchHTML(fullUrl);
-            
             return this.parseHTMLContent(html, cleanRelPath);
         } catch (error) {
-            console.error('getFolderItems Error:', error);
+            console.error('[CharmAPI] Error en getFolderItems:', error);
             throw error;
         }
     }
 
-    static parseHTMLContent(html, currentPath) {
-        const cleanRelPath = (currentPath || '').replace(/^\/|\/$/g, '');
+    /**
+     * Parsea HTML crudo para extraer Grupos (li-folder) e Ítems (a href)
+     */
+    static parseHTMLContent(inputHtml, currentPath) {
+        const cleanCurrentPath = decodeURIComponent(currentPath || '').replace(/^\/|\/$/g, '');
         
-        // 🔎 PRE-PROCESADOR DE CARPETAS VIRTUALES
-        // Algunos menús (como Diagrams) están anidados en el mismo HTML.
-        // Buscamos: <li class='li-folder'><a name='PATH'>Nombre</a><ul>...</ul></li>
-        const virtualFolderRegex = /<li\s+class=['"]li-folder['"]>\s*<a\s+name=['"](.*?)['"]>(.*?)<\/a>\s*<ul>([\s\S]*?)<\/ul>/gi;
-        let vMatch;
-        while ((vMatch = virtualFolderRegex.exec(html)) !== null) {
-            const virtualPath = decodeURIComponent(vMatch[1]).replace(/^\/|\/$/g, '');
-            const virtualContent = vMatch[3];
-            if (!HTML_CACHE.has(virtualPath)) {
-                HTML_CACHE.set(virtualPath, virtualContent);
-                console.log(`[CharmAPI] 🧬 Virtual sub-path cached: ${virtualPath}`);
-            }
+        // 1. Extraer sección útil sin copiar todo el string
+        let contentStart = 0;
+        let contentEnd = inputHtml.length;
+        const mainMatch = /<div[^>]*class=['"][^'"]*main[^'"]*['"][\s\S]*?>/i.exec(inputHtml);
+        
+        if (mainMatch) {
+            contentStart = mainMatch.index + mainMatch[0].length;
+            const closingDiv = inputHtml.indexOf('</div>', contentStart);
+            if (closingDiv !== -1) contentEnd = closingDiv;
         }
 
-        const mainMatch = html.match(/<div class=['"]main['"]>([\s\S]*?)<\/div>/i);
-        const contentToSearch = mainMatch ? mainMatch[1] : html;
-
-        const aTagRegex = /<a\s+[^>]*?(href|name)=(['"])(.*?)\2[^>]*?>(.*?)<\/a>/gi;
+        const source = inputHtml.substring(contentStart, contentEnd);
         const items = [];
-        let match;
-        
-        while ((match = aTagRegex.exec(contentToSearch)) !== null) {
-            let attrValue = decodeURIComponent(match[3]).trim();
-            let linkText = match[4].replace(/<[^>]*>?/gm, '').trim();
-
-            if (!attrValue || attrValue === "#" || attrValue.includes('javascript:')) continue;
-
-            let technicalPath = "";
-            if (attrValue.startsWith('http')) {
-                try { technicalPath = new URL(attrValue).pathname.replace(/^\/|\/$/g, ''); } 
-                catch (e) { technicalPath = attrValue; }
-            } else if (attrValue.startsWith('/')) {
-                technicalPath = attrValue.replace(/^\/|\/$/g, '');
-            } else {
-                technicalPath = `${cleanRelPath}/${attrValue}`.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
-            }
-
-            const normTech = technicalPath.toLowerCase();
-            const normCurrent = cleanRelPath.toLowerCase();
-            
-            const isNoise = ['home', 'about', 'privacy', 'operation charm', 'repair manuals', 'expand all', 'collapse all'].some(n => linkText.toLowerCase().includes(n));
-            const isDescendant = normTech.startsWith(normCurrent) || normCurrent === "";
-
-            if (technicalPath && normTech !== normCurrent && isDescendant && !isNoise) {
-                // Es carpeta si termina en /, no tiene punto, o es un anchor 'name' con contenido anidado
-                const isFolder = attrValue.endsWith('/') || !technicalPath.includes('.') || html.includes(`name='${attrValue}'`);
-                
-                let finalName = decodeURIComponent(linkText);
-                if (!finalName || finalName.length < 2) {
-                    const techParts = technicalPath.split('/');
-                    finalName = decodeURIComponent(techParts[techParts.length - 1]);
-                }
-
-                items.push({
-                    name: finalName,
-                    path: technicalPath + (isFolder ? '/' : ''),
-                    type: isFolder ? 'folder' : 'document'
-                });
-            }
-        }
-
-        if (items.length === 0 && (html.includes('<img') || html.includes('<object'))) {
-            return [{ name: "📖 Ver Contenido Técnico", path: cleanRelPath, type: 'document' }];
-        }
-
         const seen = new Set();
-        const uniqueResults = [];
-        const currentLevelCount = cleanRelPath ? cleanRelPath.split('/').length : 0;
+        let currentLevel = 0;
+        let lastMatchIndex = 0;
+        
+        // 2. Regex optimizado
+        const aRegex = /<a\s+([^>]*href=['"]([^'"]+)['"][^>]*|[^>]*name=['"]([^'"]+)['"][^>]*|[^>]*)>([\s\S]*?)<\/a>/gi;
+        let match;
 
-        items.forEach(item => {
-            const itemPathNoSlash = item.path.replace(/\/$/, '');
-            const itemPartsCount = itemPathNoSlash.split('/').length;
+        while ((match = aRegex.exec(source)) !== null) {
+            // Calcular nivel basado en etiquetas <ul> y </ul> antes de este match
+            const between = source.substring(lastMatchIndex, match.index);
+            const ups = (between.match(/<ul[\s>]/gi) || []).length;
+            const downs = (between.match(/<\/ul>/gi) || []).length;
+            currentLevel += (ups - downs);
+            lastMatchIndex = match.index;
+
+            const attrs = match[1];
+            const content = match[4].replace(/<[^>]*>?/gm, '').trim();
+
+            if (!content || /^(back|home|refresh)$/i.test(content)) continue;
+
+            // Extraer href o name de los atributos capturados
+            const hrefMatch = attrs.match(/href=['"]([^'"]+)['"]/i);
+            const nameMatch = attrs.match(/name=['"]([^'"]+)['"]/i);
             
-            // En niveles profundos, a veces el path salta niveles. 
-            // Si no hay items en el nivel +1, aceptamos el siguiente nivel disponible.
-            if (itemPartsCount === currentLevelCount + 1 || currentLevelCount === 0) {
-                if (!seen.has(item.path)) {
-                    seen.add(item.path);
-                    uniqueResults.push(item);
-                }
+            if (!hrefMatch && !nameMatch) continue;
+
+            const rawHref = hrefMatch ? hrefMatch[1] : '';
+            const rawName = nameMatch ? nameMatch[1] : '';
+            
+            if (rawHref.includes('://') && !rawHref.includes('charm.li')) continue;
+            if (rawHref.startsWith('#')) continue;
+
+            // PATH BUILDING
+            let itemPath = rawHref.startsWith('/') 
+                ? rawHref.slice(1) 
+                : `${cleanCurrentPath}/${rawHref || rawName}`.replace(/\/+/g, '/').replace(/^\/+|\/+$/g, '');
+
+            if (seen.has(itemPath) || !itemPath) continue;
+            seen.add(itemPath);
+
+            // DETECCION CARPETA (Minimalista para velocidad)
+            const isFolder = !hrefMatch || rawHref.endsWith('/') || attrs.includes('folder') || attrs.includes('li-folder');
+            const isVirtual = isFolder && !hrefMatch;
+
+            items.push({
+                type: hrefMatch ? 'item' : 'group',
+                name: decodeURIComponent(content),
+                path: itemPath,
+                isNavigableDir: isFolder,
+                hasLink: !!hrefMatch,
+                isVirtual: isVirtual,
+                level: Math.max(0, currentLevel - 1) // Ajuste para que el primer nivel sea 0
+            });
+        }
+
+        if (items.length === 0) {
+            const hasSignificantText = source.replace(/<[^>]*>?/gm, '').trim().length > 20;
+            const hasImg = inputHtml.includes('<img');
+            
+            if (hasImg || hasSignificantText) {
+                return [{ 
+                    type: 'item', 
+                    name: '📖 Ver Documento o Información', 
+                    path: cleanCurrentPath, 
+                    isNavigableDir: false, 
+                    hasLink: true, 
+                    isVirtual: false 
+                }];
             }
-        });
+        }
 
-        const finalResults = uniqueResults.length > 0 ? uniqueResults : items.filter(el => {
-            const isDup = seen.has(el.path);
-            seen.add(el.path);
-            return !isDup;
-        }).slice(0, 50); // Límite de seguridad
-
-        return finalResults.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+        return items;
     }
 
-    static async getMakes() { return this.getFolderItems(''); }
+    static async getMakes() {
+        return this.getFolderItems('');
+    }
 
+    /**
+     * Obtiene el contenido técnico (HTML limpio) para mostrar en el lector
+     */
     static async getTechnicalContent(relativePath) {
         try {
-            const cleanRelPath = relativePath.replace(/^\/|\/$/g, '');
-            const fullUrl = `${BASE_URL}${cleanRelPath}`;
+            const cleanPath = decodeURIComponent(relativePath).replace(/^\/|\/$/g, '');
+            const fullUrl = `${BASE_URL}${cleanPath}`;
             const html = await fetchHTML(fullUrl);
-            const mainMatch = html.match(/<div class=['"]main['"]>([\s\S]*?)<\/div>/i);
-            let content = mainMatch ? mainMatch[1] : html;
-            content = content.replace(/<h1>[\s\S]*?<\/h1>/i, '').replace(/<ul class=['"]breadcrumbs['"]>[\s\S]*?<\/ul>/gi, '');
-            content = content.replace(/<img[^>]+src=['"]([^'"]+)['"][^>]*>/gi, (match, src) => {
-                const abs = src.startsWith('http') ? src : `${BASE_URL}${src.startsWith('/') ? src.slice(1) : src}`;
-                return `<img src="${abs}" style="width: 100%; border-radius: 10px; margin: 10px 0;" />`;
+            
+            // Limpiar HTML para mostrar solo el contenido útil
+            let content = html;
+            const startTag = /<div[^>]*class=['"]main['"][^>]*>/i.exec(html);
+            if (startTag) {
+                const startIdx = startTag.index + startTag[0].length;
+                let endIdx = html.indexOf('<div class="theme-colors footer"', startIdx);
+                if (endIdx === -1) endIdx = html.indexOf('<div class="footer"', startIdx);
+                if (endIdx === -1) endIdx = html.indexOf('<ul class="breadcrumbs"', startIdx);
+                
+                if (endIdx !== -1) {
+                    content = html.substring(startIdx, endIdx);
+                } else {
+                    const endBody = html.indexOf('</body>', startIdx);
+                    content = (endBody !== -1) ? html.substring(startIdx, endBody) : html.substring(startIdx);
+                }
+            }
+
+            // Limpiar encabezados repetitivos y breadcrumbs finales
+            content = content.replace(/<ul class=['"]breadcrumbs['"]>[\s\S]*?<\/ul>/gi, '')
+                           .replace(/<h1>[\s\S]*?<\/h1>/i, '');
+
+            // Arreglar imágenes para que carguen directo de charm.li
+            content = content.replace(/<img[^>]+src=['"]([^'"]+)['"][^>]*>/gi, (img, src) => {
+                const absSrc = src.startsWith('http') ? src : `${BASE_URL}${src.startsWith('/') ? src.slice(1) : src}`;
+                return `<img src="${absSrc}" style="width:100%; height:auto; border-radius:8px; margin:15px 0; box-shadow:0 4px 10px rgba(0,0,0,0.1);" />`;
             });
+
             return content.trim();
-        } catch (e) { throw e; }
+        } catch (error) {
+            console.error('[CharmAPI] Error getTechnicalContent:', error);
+            throw error;
+        }
     }
 }
 

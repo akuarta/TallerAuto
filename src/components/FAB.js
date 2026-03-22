@@ -3,9 +3,9 @@ import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { Colors } from '../constants';
 
-export const FAB = ({ onPress }) => (
+export const FAB = ({ onPress, icon }) => (
     <TouchableOpacity style={styles.fab} onPress={onPress}>
-        <Plus size={32} color="white" />
+        {icon || <Plus size={32} color="white" />}
     </TouchableOpacity>
 );
 

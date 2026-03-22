@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charm.li DOM Test - Strict Mode</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, sans-serif; background: #f0f2f5; }
+        h2 { padding: 16px; background: #1a1a2e; color: white; font-size: 16px; }
+        h3 { padding: 10px 16px; background: #16213e; color: #aaa; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* ---------- raw DOM de charm (simulado) ---------- */
+        #charm-raw { display: none; }
+
+        /* ---------- resultado parseado ---------- */
+        #results { max-width: 420px; margin: 20px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.1); }
+
+        .group-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 20px; background: #f8f9fa;
+            border-bottom: 1px solid #ebebeb;
+            cursor: pointer; user-select: none;
+        }
+        .group-header:hover { background: #eef; }
+        .group-header .label { font-weight: 700; font-size: 13px; color: #555; text-transform: uppercase; letter-spacing: .5px; }
+        .group-header .arrow { font-size: 12px; color: #aaa; transition: transform .2s; }
+        .group-header.open .arrow { transform: rotate(90deg); }
+
+        .group-body { display: none; }
+        .group-body.open { display: block; }
+
+        .list-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 20px; border-bottom: 1px solid #f0f0f0;
+            cursor: pointer; background: white;
+        }
+        .list-item:hover { background: #f9f9ff; }
+        .list-item .icon { font-size: 16px; }
+        .list-item .name { flex: 1; font-size: 14px; color: #262626; font-weight: 500; }
+        .list-item .chevron { color: #ccc; font-size: 12px; }
+
+        /* items que están DENTRO de un group se indentan */
+        .group-body .list-item { padding-left: 36px; background: #fafafa; }
+    </style>
+</head>
+<body>
+
+<!-- ================================================
+     DOM REAL SIMULADO DE CHARM.LI
+     (igual a lo que nos devuelve el proxy)
+================================================= -->
+<div id="charm-raw">
+<div class='main'>
+  <ul>
+    <li><a href='/Acura/1986/Integra L4-1590cc 1.6L DOHC FI/Repair and Diagnosis/'>Repair and Diagnosis</a></li>
+    <li><a href='/Acura/1986/Integra L4-1590cc 1.6L DOHC FI/Technical Service Bulletins/'>Technical Service Bulletins</a></li>
+
+    <!-- GRUPO VISUAL (li-folder, sin href real) -->
+    <li class='li-folder'>
+      <img class='folder-icon' src='/icons/diagrams.svg'>
+      <a name='Diagrams/'>Diagrams</a>
+      <ul>
+        <li><a href='/Acura/1986/Integra L4-1590cc 1.6L DOHC FI/Diagrams/Air and Fuel Delivery/'>Air and Fuel Delivery</a></li>
+        <li><a href='/Acura/1986/Integra L4-1590cc 1.6L DOHC FI/Diagrams/Cooling System/'>Cooling System</a></li>
+        <li><a href='/Acura/1986/Integra L4-1590cc 1.6L DOHC FI/Diagrams/Grounds/'>Grounds</a></li>
+      </ul>
+    </li>
+
+    <li class='li-folder'>
+      <img class='folder-icon' src='/icons/diagrams.svg'>
+      <a name='Relays and Modules/'>Relays and Modules</a>
+      <ul>
+        <li><a href='/Acura/1986/Integra L4-1590cc 1.6L DOHC FI/Relays and Modules/Horn Relay/'>Horn Relay</a></li>
+        <li><a href='/Acura/1986/Integra L4-1590cc 1.6L DOHC FI/Relays and Modules/Main Relay/'>Main Relay</a></li>
+      </ul>
+    </li>
+
+    <li><a href='/Acura/1986/Integra L4-1590cc 1.6L DOHC FI/Component Information/'>Component Information</a></li>
+  </ul>
+</div>
+</div>
+
+<!-- ================================================
+     RESULTADO RENDERIZADO
+================================================= -->
+<h2>🔧 Strict Mode Parser — Resultado</h2>
+<div id="results"></div>
+
+<script>
+// ================================================
+// STRICT MODE PARSER — JavaScript puro
+// Idéntico a CharmAPI.parseHTMLContent
+// ================================================
+function parseHTMLContent(inputHtml, currentPath) {
+    const cleanRelPath = decodeURIComponent(currentPath || '').replace(/^\/|\/$/g, '');
+    const mainMatch = inputHtml.match(/<div class=['"]main['"]>([\s\S]*?)<\/div>/i);
+    const searchSource = mainMatch ? mainMatch[1] : inputHtml;
+
+    const items = [];
+    const seen = new Set();
+
+    // Captura <a ...>TEXT</a> en orden de lectura
+    const aTagRegex = /<a\s+([^>]*)>([\s\S]*?)<\/a>/gi;
+    let match;
+
+    while ((match = aTagRegex.exec(searchSource)) !== null) {
+        const attrsString = match[1];
+        const rawTitle = match[2].replace(/<[^>]*>?/igm, '').trim();
+
+        if (!rawTitle || rawTitle.length < 2) continue;
+        if (['home','privacy','expand all','collapse all'].some(n => rawTitle.toLowerCase().includes(n))) continue;
+
+        const hrefMatch = attrsString.match(/href=['"]([^'"]+)['"]/i);
+
+        if (hrefMatch) {
+            // ITEM navegable
+            const rawHref = hrefMatch[1].trim();
+            if (rawHref.includes('javascript:') || rawHref === '#') continue;
+
+            let technicalPath = rawHref.replace(/^\/|\/$/g, '');
+            const finalPath = technicalPath + (rawHref.endsWith('/') && !technicalPath.endsWith('/') ? '/' : '');
+
+            if (!seen.has(finalPath)) {
+                seen.add(finalPath);
+                items.push({
+                    type: 'item',
+                    name: decodeURIComponent(rawTitle),
+                    path: finalPath,
+                    isNavigableDir: rawHref.endsWith('/') || !technicalPath.includes('.')
+                });
+            }
+        } else {
+            // GROUP (solo name=, sin href)
+            items.push({ type: 'group', name: decodeURIComponent(rawTitle) });
+        }
+    }
+
+    return items;
+}
+
+// ================================================
+// RENDERIZADO UI — Acordeón Local Correcto
+// ================================================
+function renderItems(items) {
+    const container = document.getElementById('results');
+    container.innerHTML = '';
+
+    let i = 0;
+    while (i < items.length) {
+        const item = items[i];
+
+        if (item.type === 'group') {
+            // Cabecera acordeón
+            const header = document.createElement('div');
+            header.className = 'group-header';
+            header.innerHTML = `<span class="label">📁 ${item.name}</span><span class="arrow">▶</span>`;
+
+            const body = document.createElement('div');
+            body.className = 'group-body';
+
+            // Recopilar ITEMS que siguen hasta el próximo GROUP o fin de lista
+            i++;
+            while (i < items.length && items[i].type === 'item') {
+                body.appendChild(makeItemEl(items[i]));
+                i++;
+            }
+
+            header.addEventListener('click', () => {
+                header.classList.toggle('open');
+                body.classList.toggle('open');
+            });
+
+            container.appendChild(header);
+            container.appendChild(body);
+        } else {
+            // Item suelto (fuera de grupo)
+            container.appendChild(makeItemEl(item));
+            i++;
+        }
+    }
+}
+
+function makeItemEl(item) {
+    const el = document.createElement('div');
+    el.className = 'list-item';
+    const icon = item.isNavigableDir ? '📂' : '📄';
+    el.innerHTML = `<span class="icon">${icon}</span><span class="name">${item.name}</span><span class="chevron">›</span>`;
+    el.title = item.path;
+    return el;
+}
+
+// ================================================
+// MAIN
+// ================================================
+const rawHTML = document.getElementById('charm-raw').innerHTML;
+const parsed  = parseHTMLContent(rawHTML, 'Acura/1986/Integra/Repair and Diagnosis');
+console.table(parsed);
+renderItems(parsed);
+</script>
+</body>
+</html>
