@@ -20,8 +20,24 @@ async function fetchHTML(targetUrl) {
         finalUrl += '/';
     }
 
-    // 2. Aplicar Proxy CORS (Indispensable para localhost:8081)
-    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(finalUrl)}`;
+    // 2. Strict URI encoding for path parts to avoid 404s on chars like (, ), /
+    // Construimos la URL manualmente para evitar que urlObj.pathname decodifique y rompa los slashes codificados (%2F)
+    const parts = finalUrl.split('/');
+    const protocol = parts[0]; // https:
+    const domain = parts[2];   // charm.li
+    const pathParts = parts.slice(3);
+    
+    const encodedPath = pathParts.map(part => {
+        if (!part) return '';
+        // Decodificamos primero por si ya venía codificado, luego codificamos estrictamente
+        return encodeURIComponent(decodeURIComponent(part))
+            .replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+    }).join('/');
+
+    const strictUrl = `${protocol}//${domain}/${encodedPath}`;
+
+    // 3. Aplicar Proxy CORS (Indispensable para localhost:8081)
+    const proxyUrl = `${CORS_PROXY}${encodeURIComponent(strictUrl)}`;
 
     console.log(`[CharmAPI] 🛰️ FETCH VIA PROXY: ${finalUrl}`);
     
@@ -142,9 +158,22 @@ class CharmAPI {
             const isFolder = !hrefMatch || rawHref.endsWith('/') || attrs.includes('folder') || attrs.includes('li-folder');
             const isVirtual = isFolder && !hrefMatch;
 
+            let finalName = content;
+            // Robust deep decode for UI
+            while (finalName.includes('%')) {
+                try {
+                    const decoded = decodeURIComponent(finalName);
+                    if (decoded === finalName) break;
+                    finalName = decoded;
+                } catch(e) {
+                    finalName = finalName.replace(/%20/g, ' ').replace(/%28/g, '(').replace(/%29/g, ')');
+                    break;
+                }
+            }
+
             items.push({
                 type: hrefMatch ? 'item' : 'group',
-                name: decodeURIComponent(content),
+                name: finalName,
                 path: itemPath,
                 isNavigableDir: isFolder,
                 hasLink: !!hrefMatch,

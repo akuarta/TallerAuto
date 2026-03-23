@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Alert, Modal } from 'react-native';
 import { Colors } from '../constants';
 import { PremiumLoader } from '../components/PremiumLoader';
 import { CustomHeader } from '../components/CustomHeader';
@@ -16,7 +16,7 @@ const GOOGLE_MAPS_API_KEY = "AIzaSyBhMnl-cxCpsL97ukncJA-MTJugjBrkpug";
 export default function RescueScreen({ route, navigation }) {
     const insets = useSafeAreaInsets();
     const rescue = route?.params?.rescue || {};
-    const { rescates, refreshData, loading: dataLoading, updateItem, settings } = useData();
+    const { rescates, refreshData, loading: dataLoading, updateItem, settings, syncing } = useData();
     const [location, setLocation] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ export default function RescueScreen({ route, navigation }) {
     
     const [rescueInfo, setRescueInfo] = useState({
         hora: rescue.Hora || new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-        estado: rescue.Estado || 'En camino (Tiempo est: 15 min)',
+        estado: rescue.Estado || 'Pendiente',
         cliente: rescue.Cliente || 'Cliente',
         lugar: rescue['Lugar del Rescate'] || 'No especificado',
         partida: rescue['Punto de Partida'] || 'Taller'
@@ -84,8 +84,8 @@ export default function RescueScreen({ route, navigation }) {
         return null;
     };
 
-    const originCoords = parseCoords(rescue['Punto de Partida']) || { latitude: settings?.tallerLat || 18.5126, longitude: settings?.tallerLng || -69.8943 }; // Default Taller
-    const initialDest = parseCoords(rescue['Lugar del Rescate']);
+    const originCoords = parseCoords(currentRescue['Punto de Partida']) || { latitude: settings?.tallerLat || 18.5126, longitude: settings?.tallerLng || -69.8943 }; 
+    const initialDest = parseCoords(currentRescue['Lugar del Rescate']);
     const destCoords = initialDest || destPos;
 
     useEffect(() => {
@@ -360,6 +360,14 @@ export default function RescueScreen({ route, navigation }) {
                     prefill: { 'Estado': 'Pendiente', 'Fecha': new Date().toISOString().split('T')[0] }
                 })} 
             />
+            <Modal transparent={true} visible={syncing}>
+                <View style={styles.syncOverlay}>
+                    <View style={styles.syncCard}>
+                        <PremiumLoader size={60} />
+                        <Text style={styles.syncText}>Sincronizando Rescate...</Text>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -445,7 +453,7 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
-    webMapPlaceholder: {
+    emptyMap: {
         width: '100%',
         height: '100%',
         justifyContent: 'center',
@@ -532,5 +540,26 @@ const styles = StyleSheet.create({
     canceladoBadge: {
         backgroundColor: '#FFEBEE',
         borderColor: '#F44336',
+    },
+    syncOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    syncCard: {
+        backgroundColor: Colors.card,
+        padding: 30,
+        borderRadius: 16,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: Colors.border,
+        elevation: 5
+    },
+    syncText: {
+        color: Colors.text,
+        marginTop: 15,
+        fontSize: 16,
+        fontWeight: 'bold'
     }
 });

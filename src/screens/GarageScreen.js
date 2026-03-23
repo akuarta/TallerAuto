@@ -126,7 +126,17 @@ export default function GarageScreen({ navigation }) {
                         renderItem={({ item }) => (
                             <TouchableOpacity
                                 style={styles.cardContainer}
-                                onPress={() => navigation.navigate('GenericDetails', { item, title: 'Vehículo' })}
+                                onPress={() => {
+                                    const rawMatricula = item.Matricula || item.Placa;
+                                    const actualMatricula = getActualMatricula(rawMatricula) || rawMatricula;
+                                    const fullVehicle = vehiculos?.find(v => v.Matricula === actualMatricula || v.id === actualMatricula || v['ID Vehiculo'] === actualMatricula);
+                                    
+                                    if (fullVehicle) {
+                                        navigation.navigate('VehicleDetails', { vehicle: fullVehicle });
+                                    } else {
+                                        navigation.navigate('GenericDetails', { item, title: 'Órden de Taller' });
+                                    }
+                                }}
                             >
                                 <View style={[styles.statusBar, { backgroundColor: getStatusColor(item.Estado) }]} />
                                 <View style={styles.cardContent}>

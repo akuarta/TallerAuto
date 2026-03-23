@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Image, Animated, BackHandler } from 'react-native';
+import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Image, Animated, BackHandler, Alert, Platform } from 'react-native';
 import { Colors } from '../constants';
 import { PremiumLoader } from '../components/PremiumLoader';
 import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
-import { Search, ChevronRight, ChevronLeft, LayoutGrid, FileText, Wrench, Settings as SettingsIcon, Zap, Info, RefreshCw, ChevronDown } from 'lucide-react-native';
+import { Search, ChevronRight, ChevronLeft, LayoutGrid, FileText, Wrench, Settings as SettingsIcon, Zap, Info, RefreshCw, ChevronDown, ShieldCheck } from 'lucide-react-native';
 import { CustomHeader } from '../components/CustomHeader';
+import { useData } from '../context/DataContext';
 import CharmAPI from '../services/CharmAPI';
 
 // ─── groupItems ──────────────────────────────────────────────────────────
@@ -31,7 +32,8 @@ function groupItems(items) {
     return result;
 }
 
-export default function VehicleSearchScreen({ navigation }) {
+export default function VehicleSearchScreen({ navigation, route }) {
+    const { updateItem, vehiculos, loadAllData } = useData();
     const [search,    setSearch]    = useState('');
     const [isSyncing, setIsSyncing] = useState(false);
     const [error,     setError]     = useState(null);
@@ -51,9 +53,56 @@ export default function VehicleSearchScreen({ navigation }) {
     }, [history]);
 
     useEffect(() => {
-        setExpandedGroups({});
+        const { initialSearch, manualPathOverride, sectionTitle } = route.params || {};
+
+        // CONSUMIR OVERRIDE: Si hay una ruta forzada, la aplicamos y LIMPIAMOS el parámetro
+        // para que no cause bucles al navegar hacia atrás o volver a entrar.
+        if (manualPathOverride) {
+            setExpandedGroups({});
+            setHistory([{ title: sectionTitle || 'Contenido', path: manualPathOverride }]);
+            navigation.setParams({ manualPathOverride: undefined, sectionTitle: undefined });
+            return;
+        }
+
+        // Para la búsqueda inicial (Marca/Año), NO la consumimos todavía para que el
+        // Auto-resolver pueda saltar ambos niveles (Lv0 y Lv1). 
+        // Se autolimpia implícitamente al llegar al nivel 2.
+        if (initialSearch && history.length === 0 && search === '') {
+            setSearch(initialSearch);
+        }
+
         loadPath(currentLevel.path);
-    }, [currentLevel.path]);
+    }, [currentLevel.path, route.params?.manualPathOverride]);
+
+    // Auto-resolver: Solo salta Marca (l=0) y Año (l=1). El modelo SIEMPRE es elección del usuario.
+    useEffect(() => {
+        const initial = route.params?.initialSearch;
+        if (!initial || items.length === 0) return;
+        
+        // Nivel 0 → buscar la Marca
+        if (history.length === 0) {
+            const words = initial.toLowerCase().split(' ');
+            const match = items.find(i => {
+                if (!i.isNavigableDir) return false;
+                return words.some(w => w.length > 1 && i.name.toLowerCase() === w);
+            });
+            if (match) { setSearch(''); handleSelect(match); }
+        }
+        // Nivel 1 → buscar el Año exacto (4 dígitos)
+        else if (history.length === 1) {
+            const yearMatch = initial.match(/\b(19|20)\d{2}\b/);
+            if (!yearMatch) return;
+            const targetYear = yearMatch[0];
+            const match = items.find(i => i.isNavigableDir && i.name.trim() === targetYear);
+            if (match) { 
+                setSearch(''); 
+                handleSelect(match); 
+                // Al llegar aquí, ya consumimos la búsqueda automática
+                navigation.setParams({ initialSearch: undefined });
+            }
+        }
+        // Nivel 2+ → NUNCA saltar automáticamente, dejar al usuario elegir
+    }, [items, route.params?.initialSearch, history.length]);
 
     const animateTransition = () => {
         fadeAnim.setValue(0);
@@ -86,15 +135,109 @@ export default function VehicleSearchScreen({ navigation }) {
             setHistory([...history, { title: item.name, path: item.path }]);
             setSearch('');
         } else {
-            navigation.navigate('VehicleTechnicalDetail', { item, title: item.name });
+            navigation.navigate('VehicleTechnicalDetail', { 
+                item, 
+                title: item.name,
+                linkingVehicleId: route.params?.linkingVehicleId 
+            });
         }
     };
 
     const handleGoBack = () => {
+        setError(null);
         if (history.length > 0) {
             setHistory(history.slice(0, -1));
-        } else if (navigation.canGoBack()) {
-            navigation.goBack();
+        } else {
+            // Si el motor de navegación puede volver atrás, lo intentamos
+            if (navigation.canGoBack()) {
+                navigation.goBack();
+                return;
+            }
+
+            // Si no hay historial de navegación, pero tenemos vehiculo de vinculación
+            const vehicleId = route.params?.linkingVehicleId;
+            if (vehicleId) {
+                const currentVehicle = vehiculos?.find(v => v.id === vehicleId || v.Matricula === vehicleId || v['ID Vehiculo'] === vehicleId);
+                navigation.navigate('VehicleDetails', { vehicle: currentVehicle });
+            } else {
+                navigation.navigate('Dashboard');
+            }
+        }
+    };
+
+    const handleLinkFolder = async () => {
+        const vehicleId = route.params?.linkingVehicleId;
+        const oldModel = route.params?.linkingOldModel || '';
+        if (!vehicleId) return;
+
+        const pathParts = currentLevel.path.split('/').filter(p => !!p);
+        const rawCatalogModel = pathParts[2] || '';
+        
+        // Decodificar el path antes de guardar (sin %20 etc.)
+        let catalogModel = rawCatalogModel;
+        try { catalogModel = decodeURIComponent(rawCatalogModel); } catch(e) {}
+
+        // Decodificar el path completo para guardarlo limpio
+        let cleanPath = currentLevel.path;
+        try { cleanPath = decodeURIComponent(currentLevel.path); } catch(e) {}
+
+        const currentVehicle = vehiculos?.find(v => v.id === vehicleId || v.Matricula === vehicleId || v['ID Vehiculo'] === vehicleId);
+        
+        // Obtener el modelo BASE — eliminar cualquier sufijo de catálogo previo (texto entre paréntesis al final)
+        const rawModel = oldModel || currentVehicle?.Modelo || '';
+        const currentModel = rawModel.replace(/\s*\([^)]*\)\s*$/, '').trim();
+
+        let newModelName = currentModel;
+        if (catalogModel && !currentModel.toLowerCase().includes(catalogModel.toLowerCase())) {
+            newModelName = `${currentModel} (${catalogModel})`;
+        }
+
+        const confirmMsg = `¿Desea vincular permanentemente toda la documentación técnica de:\n\n${currentLevel.title}\n\na este vehículo?\n\nSu modelo se actualizará para incluir la referencia oficial.`;
+
+        const executeLink = async () => {
+            setIsSyncing(true);
+            try {
+                // Intentamos guardar en varios campos posibles por si el header en Sheets es distinto
+                await updateItem('vehiculos', vehicleId, {
+                    Manual_Tecnico_Path: cleanPath,
+                    ID_Manual_Tecnico: cleanPath,
+                    Manual_Tecnico: cleanPath,
+                    "Manual Tecnico Path": cleanPath,
+                    "Manual_Tecnico_Ruta": cleanPath,
+                    Ruta_Manual: cleanPath,
+                    Modelo: newModelName
+                });
+                
+                // Esperar un momento antes del refresh (Google Sheets a veces tarda en propagar)
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                if (loadAllData) await loadAllData();
+
+                alert("✓ Vehículo Vinculado con éxito.");
+                
+                navigation.navigate('VehicleDetails', { 
+                    vehicle: { 
+                        ...(currentVehicle || {}), 
+                        id: vehicleId,
+                        Manual_Tecnico_Path: cleanPath,
+                        Modelo: newModelName
+                    } 
+                });
+            } catch (err) {
+                console.error(err);
+                alert("Error al vincular: " + err.message);
+            } finally {
+                setIsSyncing(false);
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(confirmMsg)) executeLink();
+        } else {
+            Alert.alert("Vincular", confirmMsg, [
+                { text: "Cancelar", style: "cancel" },
+                { text: "VINCULAR", onPress: executeLink }
+            ]);
         }
     };
 
@@ -177,6 +320,29 @@ export default function VehicleSearchScreen({ navigation }) {
                 rightIcon={isSyncing ? <PremiumLoader size={20} color="#FFF" /> : <RefreshCw size={20} color="#FFF" />}
             />
 
+            {route.params?.linkingVehicleId && (
+                <View style={{ backgroundColor: Colors.primary + '20', padding: 12, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: Colors.primary + '40' }}>
+                    {history.length >= 2 ? (
+                        <TouchableOpacity 
+                            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primary, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8, elevation: 5 }} 
+                            onPress={handleLinkFolder}
+                        >
+                            <ShieldCheck size={20} color="#FFF" style={{ marginRight: 8 }} />
+                            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: 'bold' }}>
+                                VINCULAR '{currentLevel.title.toUpperCase()}'
+                            </Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                            <ShieldCheck size={16} color={Colors.primary} style={{ marginRight: 8 }} />
+                            <Text style={{ color: Colors.primary, fontSize: 11, fontWeight: 'bold', letterSpacing: 0.5 }}>
+                                NAVEGUE AL MODELO PARA VINCULARLO
+                            </Text>
+                        </View>
+                    )}
+                </View>
+            )}
+
             <View style={styles.pathBar}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pathContent}>
                     <TouchableOpacity onPress={() => jumpToHistory(-1)}>
@@ -205,9 +371,14 @@ export default function VehicleSearchScreen({ navigation }) {
                 <View style={styles.center}>
                     <Info size={48} color="#EA4335" />
                     <Text style={styles.errorText}>{error}</Text>
-                    <TouchableOpacity style={styles.retryBtn} onPress={() => loadPath(currentLevel.path)}>
-                        <Text style={styles.retryBtnText}>REINTENTAR</Text>
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', marginTop: 20 }}>
+                        <TouchableOpacity style={[styles.retryBtn, { marginRight: 10 }]} onPress={() => loadPath(currentLevel.path)}>
+                            <Text style={styles.retryBtnText}>REINTENTAR</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: Colors.border }]} onPress={() => jumpToHistory(-1)}>
+                            <Text style={[styles.retryBtnText, { color: Colors.text }]}>INICIO</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             ) : (
                 <Animated.View style={[styles.content, { opacity: fadeAnim }]}>

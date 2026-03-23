@@ -5,6 +5,7 @@ import { CustomHeader } from '../components/CustomHeader';
 import { useData } from '../context/DataContext';
 import { MapPin, Clock, ChevronRight, Filter, AlertCircle, CheckCircle2, Timer, XCircle, ArrowDownCircle, ArrowUpCircle, Plus } from 'lucide-react-native';
 import { FAB } from '../components/FAB';
+import { PremiumLoader } from '../components/PremiumLoader';
 
 const STATUS_CONFIG = {
     'Pendiente': { color: '#FF9800', icon: AlertCircle, bg: '#FF980020' },
@@ -127,19 +128,28 @@ export default function RescueListScreen({ navigation }) {
             
             {renderHeader()}
 
-            <FlatList
-                data={filteredRescates}
-                keyExtractor={(item) => item.id || Math.random().toString()}
-                renderItem={renderItem}
-                contentContainerStyle={styles.listContainer}
-                ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Filter size={48} color={Colors.border} />
-                        <Text style={styles.emptyTitle}>No hay rescates {!!activeStatus && activeStatus.toLowerCase()}s</Text>
-                        <Text style={styles.emptySubtitle}>Los nuevos pedidos aparecerán aquí automáticamente.</Text>
-                    </View>
-                }
-            />
+            {loading && (
+                <View style={styles.loaderContainer}>
+                    <PremiumLoader size={60} />
+                    <Text style={{ color: Colors.textSecondary, marginTop: 10 }}>Cargando rescates...</Text>
+                </View>
+            )}
+
+            {!loading && (
+                <FlatList
+                    data={filteredRescates}
+                    keyExtractor={(item) => item.id || Math.random().toString()}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.listContainer}
+                    ListEmptyComponent={
+                        <View style={styles.emptyContainer}>
+                            <Filter size={48} color={Colors.border} />
+                            <Text style={styles.emptyTitle}>No hay rescates {!!activeStatus && activeStatus.toLowerCase()}s</Text>
+                            <Text style={styles.emptySubtitle}>Los nuevos pedidos aparecerán aquí automáticamente.</Text>
+                        </View>
+                    }
+                />
+            )}
 
             <FAB 
                 icon={
@@ -321,5 +331,10 @@ const styles = StyleSheet.create({
     },
     actionBtn: {
         padding: 8,
+    },
+    loaderContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });

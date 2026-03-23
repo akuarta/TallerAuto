@@ -62,7 +62,7 @@ export default function DashboardScreen({ navigation }) {
                         title="Vehículos"
                         count={vehiculos?.length}
                         icon={<Car size={26} color="#4CAF50" />}
-                        onPress={() => navigation.navigate('VehicleList')}
+                        onPress={() => navigation.navigate('VehicleManager')}
                     />
                     <StatCard
                         title="Citas"

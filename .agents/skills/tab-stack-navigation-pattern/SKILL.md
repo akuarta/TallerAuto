@@ -6,7 +6,7 @@ This skill documents how to implement a nested Stack navigator inside a Bottom T
 
 1.  **Tab Navigator**: The root or main navigator for the bottom tabs.
 2.  **Stack Navigator (Nested)**: Instead of providing a Screen component directly to a Tab.Screen, provide a Stack navigator.
-3.  **Root Stack**: A global stack that contains the MainTabs (for when you DO want to hide the tab bar, like for technical viewers or settings).
+3.  **Root Stack**: A global stack that contains the MainTabs.
 
 ### Implementation in React Navigation
 
@@ -25,13 +25,20 @@ function SubNavigator() {
 <Tab.Screen 
   name="TabName" 
   component={SubNavigator} 
+  initialParams={{ fields: [] }} // ROBUSTNESS: Ensure initial params exist
   options={{ unmountOnBlur: true }} 
 />
 ```
 
+## Critical Fix: Parameter Robustness
+When using nested stacks, navigators might lose or not receive params during transition/tab switching. Always protect your components with default empty values:
+- Use `(fields || []).map(...)` instead of `fields.map(...)`.
+- Use `const getIdField = () => (fields || []).find(...)`.
+- Define `initialParams` in the Tab definition to prevent `undefined` properties during mount.
+
 ## Benefits
 - **Persistent Tabs**: The bottom navigation remains visible even during complex flows (e.g., adding a client while filling a rescue form).
-- **Layout Stability**: Prevents `KeyboardAvoidingView` issues and scroll height jumps on Android that often occur when the tab bar disappears/reappears.
+- **Layout Stability**: Prevents `KeyboardAvoidingView` issues and scroll height jumps on Android.
 - **Deep Back Button Logic**: Allows using `navigation.canGoBack()` and `navigation.push()` to handle parent-child form relationships within the same UI context.
 
 ## Usage in Forms

@@ -1,30 +1,43 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, Text } from 'react-native';
-import { FlatList, TouchableOpacity } from 'react-native-gesture-handler';
+import { View, StyleSheet, TextInput, Text, FlatList, TouchableOpacity } from 'react-native';
 import { Colors } from '../constants';
 import { useData } from '../context/DataContext';
-import { Search, Car, Edit2, Plus } from 'lucide-react-native';
+import { Search, Car, Edit2, Plus, ShieldCheck } from 'lucide-react-native';
 import { CustomHeader } from '../components/CustomHeader';
 import { FAB } from '../components/FAB';
 
-const VehicleItem = ({ vehicle, onPress, onEdit }) => (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-        <View style={styles.iconContainer}>
-            <Car size={24} color={Colors.primary} />
+const VehicleItem = ({ vehicle, onPress, onEdit }) => {
+    const isLinked = !!vehicle.Manual_Tecnico_Path;
+    return (
+        <View style={[styles.card, isLinked && styles.cardLinked]}>
+            <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} onPress={onPress}>
+                <View style={[styles.iconContainer, isLinked && { backgroundColor: Colors.primary + '25' }]}>
+                    {isLinked
+                        ? <ShieldCheck size={24} color={Colors.primary} />
+                        : <Car size={24} color={Colors.textSecondary} />}
+                </View>
+                <View style={styles.info}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.plate}>{vehicle.Matricula || 'SIN MATRICULA'}</Text>
+                        {isLinked && (
+                            <View style={styles.linkedBadge}>
+                                <Text style={styles.linkedText}>VINCULADO</Text>
+                            </View>
+                        )}
+                    </View>
+                    <Text style={styles.model}>{vehicle.Marca} {vehicle.Modelo} ({vehicle['Año de Fabricacion']})</Text>
+                    <View style={styles.badgeRow}>
+                        {!!vehicle.Color && <Text style={styles.badge}>{vehicle.Color}</Text>}
+                        {!!vehicle.Tipo && <Text style={styles.badge}>{vehicle.Tipo}</Text>}
+                    </View>
+                </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.editBtn} onPress={(e) => { e.stopPropagation && e.stopPropagation(); onEdit(); }}>
+                <Edit2 size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
         </View>
-        <View style={styles.info}>
-            <Text style={styles.plate}>{vehicle.Matricula || 'SIN MATRICULA'}</Text>
-            <Text style={styles.model}>{vehicle.Marca} {vehicle.Modelo} ({vehicle['Año de Fabricacion']})</Text>
-            <View style={styles.badgeRow}>
-                {!!vehicle.Color && <Text style={styles.badge}>{vehicle.Color}</Text>}
-                {!!vehicle.Tipo && <Text style={styles.badge}>{vehicle.Tipo}</Text>}
-            </View>
-        </View>
-        <TouchableOpacity style={styles.editBtn} onPress={onEdit}>
-            <Edit2 size={20} color={Colors.textSecondary} />
-        </TouchableOpacity>
-    </TouchableOpacity>
-);
+    );
+};
 
 export default function VehicleManagerScreen({ navigation }) {
     const { vehiculos, loading } = useData();
@@ -73,7 +86,7 @@ export default function VehicleManagerScreen({ navigation }) {
                 renderItem={({ item }) => (
                     <VehicleItem
                         vehicle={item}
-                        onPress={() => navigation.navigate('GenericDetails', { item, title: 'Vehículo' })}
+                        onPress={() => navigation.navigate('VehicleDetails', { vehicle: item })}
                         onEdit={() => navigation.navigate('Form', {
                             title: 'Vehículo',
                             dataKey: 'vehiculos',
@@ -125,4 +138,22 @@ const styles = StyleSheet.create({
     },
     editBtn: { padding: 8 },
     emptyText: { color: Colors.textSecondary, textAlign: 'center', marginTop: 40, fontSize: 16 },
+    cardLinked: {
+        borderColor: Colors.primary + '50',
+        borderWidth: 1.5,
+    },
+    linkedBadge: {
+        backgroundColor: Colors.primary + '20',
+        borderRadius: 4,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderWidth: 1,
+        borderColor: Colors.primary + '40',
+    },
+    linkedText: {
+        color: Colors.primary,
+        fontSize: 9,
+        fontWeight: 'bold',
+        letterSpacing: 0.5,
+    },
 });

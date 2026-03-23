@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DataContext = createContext({});
 
-const API_URL = "https://script.google.com/macros/s/AKfycby4AD7hddeuRU7vcYnIPT7R2TuZvTPjte3IWjoMKhHZ1ZIW-plf6JjQB-_oqLRtQnoD/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz2y8bdW3AoJFBt3XHZf3APMwXa8grTUWfMxiq-1DXMU6qvywSt11tbyaMfRuQTkKuw/exec";
 
 export const DataProvider = ({ children }) => {
   const [data, setData] = useState({
@@ -427,8 +427,10 @@ export const DataProvider = ({ children }) => {
   // Función para obtener órdenes por vehículo
   const getOrdenesByVehiculo = (matricula) => {
     const orders = data.orders || [];
+    const safeMatricula = String(matricula || '').toLowerCase();
+    if (!safeMatricula) return [];
     return orders.filter(o =>
-      (o.Matricula || '').toLowerCase() === matricula?.toLowerCase()
+      String(o.Matricula || '').toLowerCase() === safeMatricula
     );
   };
 

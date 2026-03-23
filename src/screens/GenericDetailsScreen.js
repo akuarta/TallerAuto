@@ -64,13 +64,17 @@ export default function GenericDetailsScreen({ route, navigation }) {
                 title={`DETALLE: ${title}`}
                 showBack={true}
                 leftAction={() => {
+                    if (navigation.canGoBack()) {
+                        navigation.goBack();
+                        return;
+                    }
                     const titleLower = title.toLowerCase();
                     if (titleLower.includes('orden')) navigation.navigate('Orders');
                     else if (titleLower.includes('técnico') || titleLower.includes('tecnico')) {
                         if (titleLower.includes('detalle')) navigation.navigate('VehicleSearch');
                         else navigation.navigate('TechnicianList');
                     }
-                    else if (titleLower.includes('vehículo') || titleLower.includes('vehiculo')) navigation.navigate('VehicleList');
+                    else if (titleLower.includes('vehículo') || titleLower.includes('vehiculo')) navigation.navigate('VehicleManager');
                     else if (titleLower.includes('cliente')) navigation.navigate('ClientList');
                     else if (titleLower.includes('cita')) navigation.navigate('AppointmentList');
                     else if (titleLower.includes('facturando')) navigation.navigate('InvoicingList');

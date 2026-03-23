@@ -51,10 +51,14 @@ const Drawer = createDrawerNavigator();
 if (Platform.OS === 'web') {
   const originalConsoleError = console.error;
   console.error = (...args) => {
-    if (typeof args[0] === 'string' && args[0].includes('Blocked aria-hidden')) {
-      return;
-    }
+    if (typeof args[0] === 'string' && (args[0].includes('Blocked aria-hidden') || args[0].includes('pointerEvents'))) return;
     originalConsoleError(...args);
+  };
+  
+  const originalConsoleWarn = console.warn;
+  console.warn = (...args) => {
+    if (typeof args[0] === 'string' && (args[0].includes('Blocked aria-hidden') || args[0].includes('pointerEvents'))) return;
+    originalConsoleWarn(...args);
   };
 }
 
@@ -73,14 +77,7 @@ function VehicleReferenceStack() {
   );
 }
 
-const FinalFormStack = createStackNavigator();
-function FormNavigator() {
-  return (
-    <FinalFormStack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: Colors.background } }}>
-      <FinalFormStack.Screen name="FormMain" component={FormScreen} />
-    </FinalFormStack.Navigator>
-  );
-}
+
 
 function MainTabs() {
   return (
@@ -149,6 +146,7 @@ function MainTabs() {
       <Tab.Screen
         name="RescueDetails"
         component={RescueScreen}
+        initialParams={{ rescue: {} }}
         options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
       <Tab.Screen
@@ -157,7 +155,7 @@ function MainTabs() {
         options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
       <Tab.Screen
-        name="VehicleList"
+        name="VehicleManager"
         component={VehicleManagerScreen}
         options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
@@ -205,11 +203,8 @@ function MainTabs() {
         component={GenericDetailsScreen}
         options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
-      <Tab.Screen
-        name="Form"
-        component={FormNavigator}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
+
+
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
@@ -218,6 +213,16 @@ function MainTabs() {
       <Tab.Screen
         name="VehicleTechnicalDetail"
         component={VehicleTechnicalDetailScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="VehicleDetails"
+        component={VehicleDetailsScreen}
+        options={{ unmountOnBlur: true, tabBarButton: () => null }}
+      />
+      <Tab.Screen
+        name="Form"
+        component={FormScreen}
         options={{ unmountOnBlur: true, tabBarButton: () => null }}
       />
     </Tab.Navigator>
@@ -231,8 +236,6 @@ function MainStack() {
       cardStyle: { backgroundColor: Colors.background }
     }}>
       <Stack.Screen name="Tabs" component={MainTabs} />
-      <Stack.Screen name="GenericDetails" component={GenericDetailsScreen} options={{ unmountOnBlur: true }} />
-      <Stack.Screen name="VehicleTechnicalDetail" component={VehicleTechnicalDetailScreen} options={{ unmountOnBlur: true }} />
     </Stack.Navigator>
   );
 }
@@ -263,7 +266,7 @@ function AppContent() {
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
+      <SafeAreaProvider style={{ flex: 1 }}>
         <DataProvider>
           <AppContent />
         </DataProvider>

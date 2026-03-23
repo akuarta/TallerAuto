@@ -59,20 +59,14 @@ export default function FormScreen({ route, navigation }) {
             'garage': 'Garage',
             'invoices': 'Billing',
             'catalog': 'VehicleSearch',
-            'vehiculos': 'VehicleList',
+            'vehiculos': 'VehicleManager',
             'clients': 'ClientList',
             'tecnicos': 'TechnicianList',
             'citas': 'AppointmentList',
             'facturando': 'InvoicingList'
         };
-        const target = mapping[dataKey];
-        if (navigation.canGoBack()) {
-            navigation.goBack();
-        } else if (target) {
-            navigation.navigate(target);
-        } else {
-            navigation.goBack();
-        }
+        const target = mapping[dataKey] || 'Dashboard';
+        navigation.navigate(target);
     };
 
     // Función para identificar si un campo es un campo ID
@@ -948,7 +942,7 @@ export default function FormScreen({ route, navigation }) {
     };
 
     // Encontrar el campo ID principal
-    const getIdField = () => fields.find(f => isIdField(f));
+    const getIdField = () => (fields || []).find(f => isIdField(f));
 
     useEffect(() => {
         const data = item || prefill || {};
@@ -987,7 +981,10 @@ export default function FormScreen({ route, navigation }) {
                 }
             });
 
-            if (hasChanges) setFormData(updatedFormData);
+            if (hasChanges) {
+                setFormData(updatedFormData);
+                setInitialData({ ...updatedFormData });
+            }
         }
     }, [allData, dataKey, fields, isEdit]);
 
@@ -1010,7 +1007,7 @@ export default function FormScreen({ route, navigation }) {
                 showAlert("Atención", "Selecciona primero un Cliente.");
                 return;
             }
-            if (!formData.Matricula && !formData.Vehículo) {
+            if (!formData.Matricula && !formData.Vehiculo) {
                 showAlert("Atención", "Selecciona una matrícula de vehículo.");
                 return;
             }
@@ -1018,6 +1015,37 @@ export default function FormScreen({ route, navigation }) {
             if (!formData.Nombre) {
                 showAlert("Atención", "El campo 'Nombre' es obligatorio.");
                 return;
+            }
+        }
+
+        // Validación de Marcas/Modelos Duplicados en Catálogos
+        if (dataKey === 'catalog') {
+            const isBrandForm = fields.some(f => f.toLowerCase() === 'marca') && !fields.some(f => f.toLowerCase() === 'modelo');
+            const isModelForm = fields.some(f => f.toLowerCase() === 'modelo');
+
+            if (isBrandForm) {
+                const brand = formData.Marca;
+                const existing = allData.catalog?.find(c => 
+                    String(c.Marca || '').toLowerCase().trim() === String(brand || '').toLowerCase().trim() &&
+                    (!isEdit || c.id !== item.id)
+                );
+                if (existing) {
+                    showAlert("Marca Duplicada", `La marca '${brand}' ya existe en el catálogo.`);
+                    return;
+                }
+            } else if (isModelForm) {
+                const model = formData.Modelo;
+                const brand = formData.Marca || formData.ID_Marca;
+                const existing = allData.catalog?.find(c => 
+                    String(c.Modelo || '').toLowerCase().trim() === String(model || '').toLowerCase().trim() &&
+                    (String(c.Marca || '').toLowerCase().trim() === String(brand || '').toLowerCase().trim() ||
+                     String(c.ID_Marca || '').toLowerCase().trim() === String(brand || '').toLowerCase().trim()) &&
+                    (!isEdit || c.id !== item.id)
+                );
+                if (existing) {
+                    showAlert("Modelo Duplicado", `El modelo '${model}' ya existe para esta marca en el catálogo.`);
+                    return;
+                }
             }
         }
 
@@ -1322,6 +1350,7 @@ export default function FormScreen({ route, navigation }) {
     };
 
     const idField = getIdField();
+    const isLinked = !!formData.Manual_Tecnico_Path;
 
     return (
         <KeyboardAvoidingView
@@ -1350,7 +1379,7 @@ export default function FormScreen({ route, navigation }) {
                 }}
             />
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll}>
-                {fields.map((field) => {
+                {(fields || []).map((field) => {
                     const isId = isIdField(field);
                     const isPicker = isPickerField(field);
 
@@ -1368,8 +1397,19 @@ export default function FormScreen({ route, navigation }) {
                                 )}
                                 {isPicker ? (
                                     <TouchableOpacity
-                                        style={[styles.input, isId && styles.idInput, { justifyContent: 'center' }]}
-                                        onPress={() => openPicker(field)}
+                                        style={[
+                                            styles.input, 
+                                            isId && styles.idInput, 
+                                            { justifyContent: 'center' },
+                                            (isLinked && ['marca', 'modelo', 'año', 'fabricacion'].some(k => field.toLowerCase().includes(k))) && { opacity: 0.6 }
+                                        ]}
+                                        onPress={() => {
+                                            if (isLinked && ['marca', 'modelo', 'año', 'fabricacion'].some(k => field.toLowerCase().includes(k))) {
+                                                showAlert("Campo Protegido", "Este campo no se puede editar porque el vehículo está vinculado al catálogo técnico comercial/Charm.");
+                                                return;
+                                            }
+                                            openPicker(field);
+                                        }}
                                     >
                                         <Text style={{ color: formData[field] ? Colors.text : Colors.textSecondary }}>
                                             {formData[field] || `Seleccionar ${field}...`}
@@ -1391,7 +1431,9 @@ export default function FormScreen({ route, navigation }) {
                                             value={formData[field]?.toString() || ''}
                                             keyboardType={(field.toLowerCase().includes('año') || field.toLowerCase().includes('fabricacion') || field.toLowerCase().includes('hora')) ? 'numeric' : 'default'}
                                             autoCapitalize={(field.toLowerCase() === 'placa' || field.toLowerCase() === 'matricula' || field.toLowerCase().includes('vin')) ? 'characters' : 'sentences'}
+                                            editable={!(isLinked && ['marca', 'modelo', 'año', 'fabricacion'].some(k => field.toLowerCase().includes(k)))}
                                             onChangeText={(text) => {
+                                                if (isLinked && ['marca', 'modelo', 'año', 'fabricacion'].some(k => field.toLowerCase().includes(k))) return;
                                                 let finalValue = text;
                                                 const fLower = field.toLowerCase();
                                                 if (fLower === 'año' || fLower.includes('fabricacion')) {
@@ -1444,7 +1486,7 @@ export default function FormScreen({ route, navigation }) {
                                                 <SearchIcon size={24} color={Colors.primary} />
                                             </TouchableOpacity>
                                         )}
-                                        {(field.toLowerCase().includes('lugar') || field.toLowerCase().includes('partida')) && dataKey === 'rescates' && (
+                                        {(field.toLowerCase().includes('lugar') || field.toLowerCase().includes('partida') || field.toLowerCase().includes('trayectoria')) && dataKey === 'rescates' && (
                                             <TouchableOpacity
                                                 style={styles.calendarButton}
                                                 onPress={() => openMapForField(field)}
@@ -1527,11 +1569,17 @@ export default function FormScreen({ route, navigation }) {
                 )}
 
                 <View style={styles.actions}>
-                    {isEdit && (
+                    {isEdit && !isLinked && (
                         <TouchableOpacity style={[styles.button, styles.delete]} onPress={handleDelete}>
                             <Trash2 size={20} color="#FFF" />
                             <Text style={styles.buttonText}>ELIMINAR</Text>
                         </TouchableOpacity>
+                    )}
+                    {isEdit && isLinked && (
+                        <View style={[styles.button, { backgroundColor: '#333', opacity: 0.5 }]}>
+                            <ShieldCheck size={20} color="#666" />
+                            <Text style={[styles.buttonText, { color: '#666' }]}>VINCULADO</Text>
+                        </View>
                     )}
                     <TouchableOpacity
                         style={[styles.button, styles.cancel]}
@@ -1671,7 +1719,7 @@ export default function FormScreen({ route, navigation }) {
                                     style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
                                     onPress={() => {
                                         setPickerVisible(false);
-                                        navigation.push('FormMain', {
+                                        navigation.push('Form', {
                                             title: 'Cliente',
                                             dataKey: 'clients',
                                             fields: ['DNI', 'Nombre', 'Telefono', 'Direccion', 'Notas', 'Vehículo']
@@ -1688,7 +1736,7 @@ export default function FormScreen({ route, navigation }) {
                                     style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
                                     onPress={() => {
                                         setPickerVisible(false);
-                                        navigation.push('FormMain', {
+                                        navigation.push('Form', {
                                             title: 'Técnico',
                                             dataKey: 'tecnicos',
                                             fields: ['ID_tecnico', 'Nombre', 'Especialidad', 'Telefono', 'Estado']
@@ -1705,7 +1753,7 @@ export default function FormScreen({ route, navigation }) {
                                     style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
                                     onPress={() => {
                                         setPickerVisible(false);
-                                        navigation.push('FormMain', {
+                                        navigation.push('Form', {
                                             title: 'Marca',
                                             dataKey: 'catalog',
                                             fields: ['Marca', 'ID_Marca']
@@ -1723,7 +1771,7 @@ export default function FormScreen({ route, navigation }) {
                                     onPress={() => {
                                         setPickerVisible(false);
                                         const brandVal = formData.Marca || formData.ID_Marca;
-                                        navigation.push('FormMain', {
+                                        navigation.push('Form', {
                                             title: 'Modelo',
                                             dataKey: 'catalog',
                                             prefill: brandVal ? { Marca: brandVal } : {},
@@ -1746,7 +1794,7 @@ export default function FormScreen({ route, navigation }) {
                                         const currentClientIdField = fields.find(f => f.toLowerCase().includes('id_cliente'));
                                         const currentClientId = currentClientIdField ? formData[currentClientIdField] : null;
 
-                                        navigation.push('FormMain', {
+                                        navigation.push('Form', {
                                             title: 'Vehículo',
                                             dataKey: 'vehiculos',
                                             fields: ['Matricula', 'Marca', 'Modelo', 'Año de Fabricacion', 'Color', 'Codigo VIN', 'Notas'],
@@ -1768,7 +1816,7 @@ export default function FormScreen({ route, navigation }) {
                                     style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
                                     onPress={() => {
                                         setPickerVisible(false);
-                                        navigation.push('FormMain', {
+                                        navigation.push('Form', {
                                             title: 'Servicio',
                                             dataKey: 'servicios',
                                             fields: ['ID_Servicio', 'Servicios', 'costo', 'descripcion', 'tiempo', 'tecnico']
@@ -1785,7 +1833,7 @@ export default function FormScreen({ route, navigation }) {
                                     style={[styles.pickerOption, { borderBottomWidth: 0, marginTop: 10, backgroundColor: Colors.primary + '20' }]}
                                     onPress={() => {
                                         setPickerVisible(false);
-                                        navigation.push('FormMain', {
+                                        navigation.push('Form', {
                                             title: 'Producto',
                                             dataKey: 'productos',
                                             fields: ['ID_Producto', 'Producto', 'Precio', 'Stock', 'Ubicacion']

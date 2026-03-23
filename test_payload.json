@@ -1,0 +1,11 @@
+{
+  "action": "UPDATE",
+  "sheet": "VEHICULOS",
+  "dataKey": "vehiculos",
+  "data": {
+    "id": "VEH0009",
+    "ID_Vehiculo": "VEH0009",
+    "Manual_Tecnico_Path": "Toyota/1994/Corolla Sedan L4-96.8 1587cc 1.6L DOHC (4A-FE)",
+    "Modelo": "Toyota Corolla (Corolla Sedan L4-1587cc 1.6L DOHC (4A-FE)) 1994"
+  }
+}

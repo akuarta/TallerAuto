@@ -15,7 +15,7 @@ export function CustomDrawerContent(props) {
         { label: 'INVENTARIO/PRODUCTOS', icon: <Package size={22} color={Colors.textSecondary} />, navigateTo: 'Inventory', inTabs: true },
         { label: 'SALIDAS FINALIZADAS', icon: <ArrowUpRight size={22} color={Colors.textSecondary} />, navigateTo: 'Salidas', inTabs: true },
         { label: 'TÉCNICOS', icon: <Wrench size={22} color={Colors.textSecondary} />, navigateTo: 'TechnicianList', inTabs: true },
-        { label: 'VEHICULOS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'VehicleList', inTabs: true },
+        { label: 'VEHICULOS', icon: <List size={22} color={Colors.textSecondary} />, navigateTo: 'VehicleManager', inTabs: true },
         { label: 'MANUALES CHARM', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'CharmWeb', inTabs: true },
         { label: 'BUSCADOR TÉCNICO', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'VehicleSearch', inTabs: true },
         { label: 'CATÁLOGO MARCAS', icon: <LayoutGrid size={22} color={Colors.textSecondary} />, navigateTo: 'VehicleCategories', inTabs: true },
