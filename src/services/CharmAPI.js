@@ -78,7 +78,8 @@ class CharmAPI {
      */
     static async getFolderItems(relativePath) {
         try {
-            const cleanRelPath = decodeURIComponent(relativePath || '').replace(/^\/|\/$/g, '');
+            // Ya no decodificamos: mantene el path real (codificado) para construir la URL
+            const cleanRelPath = (relativePath || '').replace(/^\/|\/$/g, '');
             const fullUrl = `${BASE_URL}${cleanRelPath}${cleanRelPath ? '/' : ''}`;
             
             // Usar cache de sesión
@@ -98,7 +99,8 @@ class CharmAPI {
      * Parsea HTML crudo para extraer Grupos (li-folder) e Ítems (a href)
      */
     static parseHTMLContent(inputHtml, currentPath) {
-        const cleanCurrentPath = decodeURIComponent(currentPath || '').replace(/^\/|\/$/g, '');
+        // Para construir paths hijos, usamos el path padre TAL CUAL (codificado)
+        const encodedParentPath = (currentPath || '').replace(/^\/|\/$/g, '');
         
         // 1. Extraer sección útil sin copiar todo el string
         let contentStart = 0;
@@ -130,11 +132,11 @@ class CharmAPI {
             lastMatchIndex = match.index;
 
             const attrs = match[1];
+            // Para el nombre visual, limpiamos el HTML interno
             const content = match[4].replace(/<[^>]*>?/gm, '').trim();
 
             if (!content || /^(back|home|refresh)$/i.test(content)) continue;
 
-            // Extraer href o name de los atributos capturados
             const hrefMatch = attrs.match(/href=['"]([^'"]+)['"]/i);
             const nameMatch = attrs.match(/name=['"]([^'"]+)['"]/i);
             
@@ -146,15 +148,14 @@ class CharmAPI {
             if (rawHref.includes('://') && !rawHref.includes('charm.li')) continue;
             if (rawHref.startsWith('#')) continue;
 
-            // PATH BUILDING
+            // PATH BUILDING: Usamos rawHref directamente sin decodificar
             let itemPath = rawHref.startsWith('/') 
                 ? rawHref.slice(1) 
-                : `${cleanCurrentPath}/${rawHref || rawName}`.replace(/\/+/g, '/').replace(/^\/+|\/+$/g, '');
+                : `${encodedParentPath}/${rawHref || rawName}`.replace(/\/+/g, '/').replace(/^\/+|\/+$/g, '');
 
             if (seen.has(itemPath) || !itemPath) continue;
             seen.add(itemPath);
 
-            // DETECCION CARPETA (Minimalista para velocidad)
             const isFolder = !hrefMatch || rawHref.endsWith('/') || attrs.includes('folder') || attrs.includes('li-folder');
             const isVirtual = isFolder && !hrefMatch;
 
