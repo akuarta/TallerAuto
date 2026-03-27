@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, Image, Animated, BackHandler, Alert, Platform } from 'react-native';
-import { Colors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { PremiumLoader } from '../components/PremiumLoader';
 import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
 import { Search, ChevronRight, ChevronLeft, LayoutGrid, FileText, Wrench, Settings as SettingsIcon, Zap, Info, RefreshCw, ChevronDown, ShieldCheck } from 'lucide-react-native';
@@ -33,6 +33,8 @@ function groupItems(items) {
 }
 
 export default function VehicleSearchScreen({ navigation, route }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const { updateItem, vehiculos, loadAllData } = useData();
     const [search,    setSearch]    = useState('');
     const [isSyncing, setIsSyncing] = useState(false);
@@ -258,7 +260,7 @@ export default function VehicleSearchScreen({ navigation, route }) {
     };
 
     const getItemIcon = (name, isDir) => {
-        if (!isDir) return <FileText size={18} color={Colors.textSecondary} />;
+        if (!isDir) return <FileText size={18} color={colors.textSecondary} />;
         const n = name.toLowerCase();
         if (n.includes('engine') || n.includes('motor') || n.includes('powertrain'))
             return <View style={[styles.miniIcon, { backgroundColor: '#CF132220' }]}><Wrench size={16} color="#CF1322" /></View>;
@@ -270,7 +272,7 @@ export default function VehicleSearchScreen({ navigation, route }) {
             return <View style={[styles.miniIcon, { backgroundColor: '#08979C20' }]}><Zap size={16} color="#08979C" /></View>;
         if (n.includes('maintenance') || n.includes('service'))
             return <View style={[styles.miniIcon, { backgroundColor: '#389E0D20' }]}><Info size={16} color="#389E0D" /></View>;
-        return <View style={[styles.miniIcon, { backgroundColor: Colors.background }]}><LayoutGrid size={16} color={Colors.textSecondary} /></View>;
+        return <View style={[styles.miniIcon, { backgroundColor: colors.background }]}><LayoutGrid size={16} color={colors.textSecondary} /></View>;
     };
 
     const renderNode = (node, key, nestLevel = 0) => {
@@ -285,8 +287,8 @@ export default function VehicleSearchScreen({ navigation, route }) {
                         activeOpacity={0.7}
                     >
                         {isOpen
-                            ? <ChevronDown size={18} color={Colors.textSecondary} style={styles.groupArrow} />
-                            : <ChevronRight size={18} color={Colors.textSecondary} style={styles.groupArrow} />}
+                            ? <ChevronDown size={18} color={colors.textSecondary} style={styles.groupArrow} />
+                            : <ChevronRight size={18} color={colors.textSecondary} style={styles.groupArrow} />}
                         <Text style={[styles.groupHeaderText, nestLevel > 0 && { fontSize: 13, textTransform: 'none' }]}>
                             {node.name}
                         </Text>
@@ -305,7 +307,7 @@ export default function VehicleSearchScreen({ navigation, route }) {
                     {getItemIcon(node.name, node.isNavigableDir)}
                 </View>
                 <Text style={styles.listText} numberOfLines={2}>{node.name}</Text>
-                <ChevronRight size={16} color={Colors.border} />
+                <ChevronRight size={16} color={colors.border} />
             </TouchableOpacity>
         );
     };
@@ -313,7 +315,7 @@ export default function VehicleSearchScreen({ navigation, route }) {
     return (
         <View style={styles.container}>
             <CustomHeader
-                title={currentLevel.title.toUpperCase()}
+                title={currentLevel.title}
                 leftAction={handleGoBack}
                 leftIcon={<ChevronLeft size={24} color="#FFF" />}
                 rightAction={() => loadPath(currentLevel.path)}
@@ -321,10 +323,10 @@ export default function VehicleSearchScreen({ navigation, route }) {
             />
 
             {route.params?.linkingVehicleId && (
-                <View style={{ backgroundColor: Colors.primary + '20', padding: 12, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: Colors.primary + '40' }}>
+                <View style={{ backgroundColor: colors.primary + '20', padding: 12, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: colors.primary + '40' }}>
                     {history.length >= 2 ? (
                         <TouchableOpacity 
-                            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primary, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8, elevation: 5 }} 
+                            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8, elevation: 5 }} 
                             onPress={handleLinkFolder}
                         >
                             <ShieldCheck size={20} color="#FFF" style={{ marginRight: 8 }} />
@@ -334,8 +336,8 @@ export default function VehicleSearchScreen({ navigation, route }) {
                         </TouchableOpacity>
                     ) : (
                         <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                            <ShieldCheck size={16} color={Colors.primary} style={{ marginRight: 8 }} />
-                            <Text style={{ color: Colors.primary, fontSize: 11, fontWeight: 'bold', letterSpacing: 0.5 }}>
+                            <ShieldCheck size={16} color={colors.primary} style={{ marginRight: 8 }} />
+                            <Text style={{ color: colors.primary, fontSize: 11, fontWeight: 'bold', letterSpacing: 0.5 }}>
                                 NAVEGUE AL MODELO PARA VINCULARLO
                             </Text>
                         </View>
@@ -375,8 +377,8 @@ export default function VehicleSearchScreen({ navigation, route }) {
                         <TouchableOpacity style={[styles.retryBtn, { marginRight: 10 }]} onPress={() => loadPath(currentLevel.path)}>
                             <Text style={styles.retryBtnText}>REINTENTAR</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: Colors.border }]} onPress={() => jumpToHistory(-1)}>
-                            <Text style={[styles.retryBtnText, { color: Colors.text }]}>INICIO</Text>
+                        <TouchableOpacity style={[styles.retryBtn, { backgroundColor: colors.border }]} onPress={() => jumpToHistory(-1)}>
+                            <Text style={[styles.retryBtnText, { color: colors.text }]}>INICIO</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -402,13 +404,13 @@ export default function VehicleSearchScreen({ navigation, route }) {
                             <>
                                 <View style={styles.searchSection}>
                                     <View style={styles.searchBox}>
-                                        <Search size={18} color={Colors.textSecondary} />
+                                        <Search size={18} color={colors.textSecondary} />
                                         <TextInput
                                             style={styles.input}
                                             placeholder={`Filtrar en ${currentLevel.title}...`}
                                             value={search}
                                             onChangeText={setSearch}
-                                            placeholderTextColor={Colors.textSecondary}
+                                            placeholderTextColor={colors.textSecondary}
                                         />
                                     </View>
                                 </View>
@@ -418,7 +420,7 @@ export default function VehicleSearchScreen({ navigation, route }) {
 
                         {!isSyncing && filteredItems.length === 0 && (
                             <View style={styles.center}>
-                                <Info size={40} color={Colors.border} />
+                                <Info size={40} color={colors.border} />
                                 <Text style={styles.noResultsText}>No hay datos para mostrar</Text>
                                 <Text style={styles.pathDebug}>{currentLevel.path}</Text>
                                 <TouchableOpacity style={styles.retryBtn} onPress={() => loadPath(currentLevel.path)}>
@@ -433,36 +435,36 @@ export default function VehicleSearchScreen({ navigation, route }) {
     );
 }
 
-const styles = StyleSheet.create({
-    container:   { flex: 1, backgroundColor: Colors.background },
+const getStyles = (colors) => StyleSheet.create({
+    container:   { flex: 1, backgroundColor: colors.background },
     center:      { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
     content:     { flex: 1 },
     scroll:      { paddingBottom: 60 },
     loader:      { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    loaderText:  { marginTop: 15, color: Colors.textSecondary, fontSize: 11, fontWeight: 'bold', letterSpacing: 1.5 },
-    loaderSubText: { color: Colors.border, fontSize: 10, marginTop: 4 },
-    pathBar: { backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
+    loaderText:  { marginTop: 15, color: colors.textSecondary, fontSize: 11, fontWeight: 'bold', letterSpacing: 1.5 },
+    loaderSubText: { color: colors.border, fontSize: 10, marginTop: 4 },
+    pathBar: { backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
     pathContent: { paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center' },
-    pathLink: { color: Colors.textSecondary, fontSize: 13 },
-    pathActive: { color: Colors.primary, fontWeight: 'bold' },
-    searchSection: { padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.border },
-    searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, borderRadius: 10, paddingHorizontal: 10, height: 40, borderWidth: 1, borderColor: Colors.border },
-    input: { flex: 1, marginLeft: 10, color: Colors.text },
+    pathLink: { color: colors.textSecondary, fontSize: 13 },
+    pathActive: { color: colors.primary, fontWeight: 'bold' },
+    searchSection: { padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+    searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.background, borderRadius: 10, paddingHorizontal: 10, height: 40, borderWidth: 1, borderColor: colors.border },
+    input: { flex: 1, marginLeft: 10, color: colors.text },
     brandsGrid: { flexDirection: 'row', flexWrap: 'wrap', padding: 8, justifyContent: 'space-between' },
-    brandCard: { width: '30%', backgroundColor: Colors.card, borderRadius: 12, padding: 12, marginBottom: 12, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+    brandCard: { width: '30%', backgroundColor: colors.card, borderRadius: 12, padding: 12, marginBottom: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
     brandLogoCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
     brandLogo: { width: 45, height: 45 },
-    brandName: { color: Colors.text, fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
-    groupHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, backgroundColor: Colors.card, borderBottomWidth: 1, borderBottomColor: Colors.border },
+    brandName: { color: colors.text, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+    groupHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
     groupArrow: { marginRight: 10 },
-    groupHeaderText: { color: Colors.text, fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase' },
-    listItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
+    groupHeaderText: { color: colors.text, fontSize: 15, fontWeight: '700' }, // Un poco más pequeño y elegante
+    listItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
     listIconBox: { marginRight: 12 },
     miniIcon: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-    listText: { flex: 1, color: Colors.text, fontSize: 14 },
-    errorText: { color: Colors.textSecondary, textAlign: 'center', marginTop: 10 },
-    retryBtn: { marginTop: 20, backgroundColor: Colors.primary, paddingHorizontal: 25, paddingVertical: 12, borderRadius: 25 },
+    listText: { flex: 1, color: colors.text, fontSize: 15, lineHeight: 22 }, // Tamaño intermedio perfecto
+    errorText: { color: colors.textSecondary, textAlign: 'center', marginTop: 10 },
+    retryBtn: { marginTop: 20, backgroundColor: colors.primary, paddingHorizontal: 25, paddingVertical: 12, borderRadius: 25 },
     retryBtnText: { color: '#FFF', fontWeight: 'bold' },
-    noResultsText: { color: Colors.textSecondary, marginTop: 15 },
-    pathDebug: { fontSize: 9, color: Colors.border, marginTop: 5 },
+    noResultsText: { color: colors.textSecondary, marginTop: 15 },
+    pathDebug: { fontSize: 9, color: colors.border, marginTop: 5 },
 });

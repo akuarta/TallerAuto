@@ -7,6 +7,7 @@ import { FileText, Calendar, DollarSign, ChevronRight, Trash2, Edit2, Search, Ch
 import { CustomHeader } from '../components/CustomHeader';
 import { Alert } from 'react-native';
 import { FAB } from '../components/FAB';
+import { formatCurrency } from '../utils/formatters';
 
 export default function InvoiceListScreen({ navigation }) {
     const { invoices, loading, orders, updateItem } = useData();
@@ -130,18 +131,18 @@ export default function InvoiceListScreen({ navigation }) {
                                     )}
                                     {parseFloat(item.Propina || 0) > 0 && (
                                         <Text style={[styles.reputationBadge, { color: '#32CD32', backgroundColor: '#32CD3220' }]}>
-                                            + Propina: ${item.Propina}
+                                            + Propina: {formatCurrency(item.Propina)}
                                         </Text>
                                     )}
                                     {parseFloat(item.Regateo || 0) > 0 && (
                                         <Text style={[styles.reputationBadge, { color: '#FF6347', backgroundColor: '#FF634720' }]}>
-                                            - Regateo: ${item.Regateo}
+                                            - Regateo: {formatCurrency(item.Regateo)}
                                         </Text>
                                     )}
                                 </View>
                             </View>
                             <View style={styles.amountContainer}>
-                                <Text style={styles.amount}>${item.Total || '0'}</Text>
+                                <Text style={styles.amount}>{formatCurrency(item.Total)}</Text>
                                 <Text style={[styles.statusText, { color: getPaymentColor(item.Estado) }]}>
                                     {item.Estado || 'Pendiente'}
                                 </Text>

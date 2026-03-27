@@ -1,13 +1,16 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Plus } from 'lucide-react-native';
-import { Colors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 
-export const FAB = ({ onPress, icon }) => (
-    <TouchableOpacity style={styles.fab} onPress={onPress}>
-        {icon || <Plus size={32} color="white" />}
-    </TouchableOpacity>
-);
+export const FAB = ({ onPress, icon }) => {
+    const { colors } = useTheme();
+    return (
+        <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={onPress}>
+            {icon || <Plus size={32} color="white" />}
+        </TouchableOpacity>
+    );
+};
 
 const styles = StyleSheet.create({
     fab: {
@@ -17,7 +20,6 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 30,
-        backgroundColor: Colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 5,

@@ -9,9 +9,11 @@ import Animated, {
     cancelAnimation
 } from 'react-native-reanimated';
 import { Settings } from 'lucide-react-native';
-import { Colors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 
-export const PremiumLoader = ({ size = 60, color = Colors.primary }) => {
+export const PremiumLoader = ({ size = 60, color }) => {
+    const { colors } = useTheme();
+    const activeColor = color || colors.primary;
     const rotation = useSharedValue(0);
 
     useEffect(() => {
@@ -39,7 +41,7 @@ export const PremiumLoader = ({ size = 60, color = Colors.primary }) => {
         <View style={styles.container}>
             {/* Gear Grande */}
             <Animated.View style={animatedStyle}>
-                <Settings size={size} color={color} strokeWidth={1.5} />
+                <Settings size={size} color={activeColor} strokeWidth={1.5} />
             </Animated.View>
             
             {/* Gear Pequeño entrelazado */}
@@ -51,7 +53,7 @@ export const PremiumLoader = ({ size = 60, color = Colors.primary }) => {
                     left: -size * 0.2
                 }
             ]}>
-                <Settings size={size * 0.6} color={color} opacity={0.7} strokeWidth={1.5} />
+                <Settings size={size * 0.6} color={activeColor} opacity={0.7} strokeWidth={1.5} />
             </Animated.View>
         </View>
     );

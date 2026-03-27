@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Alert, Modal } from 'react-native';
-import { Colors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { PremiumLoader } from '../components/PremiumLoader';
 import { CustomHeader } from '../components/CustomHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,8 @@ import { MapView, Marker, Polyline } from '../components/MapComponents';
 const GOOGLE_MAPS_API_KEY = "AIzaSyBhMnl-cxCpsL97ukncJA-MTJugjBrkpug";
 
 export default function RescueScreen({ route, navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const insets = useSafeAreaInsets();
     const rescue = route?.params?.rescue || {};
     const { rescates, refreshData, loading: dataLoading, updateItem, settings, syncing } = useData();
@@ -183,27 +185,27 @@ export default function RescueScreen({ route, navigation }) {
                     <View style={styles.cardHeader}>
                         <View>
                             <Text style={styles.cardTitle}>Servicio de Rescate</Text>
-                            <Text style={{ color: Colors.primary, fontWeight: 'bold', fontSize: 13 }}>ID: {currentRescue.id || rescue.id || 'NUEVO'}</Text>
+                            <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 13 }}>ID: {currentRescue.id || rescue.id || 'NUEVO'}</Text>
                         </View>
                         <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
-                            <RefreshCw color={Colors.primary} size={20} />
+                            <RefreshCw color={colors.primary} size={20} />
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.infoRow}>
                         <View style={styles.iconContainer}>
-                            <MapPin color={Colors.text} size={20} />
+                            <MapPin color={colors.text} size={20} />
                         </View>
                         <View style={styles.infoTexts}>
                             <Text style={styles.infoLabel}>Cliente / Vehículo</Text>
                             <Text style={styles.infoValue}>{rescueInfo.cliente}</Text>
-                            {!!currentRescue?.Matricula && <Text style={{ color: Colors.textSecondary, fontSize: 13 }}>{currentRescue.Matricula}</Text>}
+                            {!!currentRescue?.Matricula && <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{currentRescue.Matricula}</Text>}
                         </View>
                     </View>
 
                     <View style={styles.infoRow}>
                         <View style={styles.iconContainer}>
-                            <Clock color={Colors.text} size={20} />
+                            <Clock color={colors.text} size={20} />
                         </View>
                         <View style={styles.infoTexts}>
                             <Text style={styles.infoLabel}>Hora de Solicitud</Text>
@@ -213,7 +215,7 @@ export default function RescueScreen({ route, navigation }) {
 
                     <View style={styles.infoRow}>
                         <View style={styles.iconContainer}>
-                            <Route color={Colors.text} size={20} />
+                            <Route color={colors.text} size={20} />
                         </View>
                         <View style={styles.infoTexts}>
                             <Text style={styles.infoLabel}>Trayectoria / Estado</Text>
@@ -223,7 +225,7 @@ export default function RescueScreen({ route, navigation }) {
                     
                     <View style={styles.infoRow}>
                         <View style={styles.iconContainer}>
-                            <MapPin color={Colors.text} size={20} />
+                            <MapPin color={colors.text} size={20} />
                         </View>
                         <View style={styles.infoTexts}>
                             <Text style={styles.infoLabel}>Lugar del Rescate</Text>
@@ -233,7 +235,7 @@ export default function RescueScreen({ route, navigation }) {
                             ) : errorMsg ? (
                                 <Text style={styles.errorText}>{errorMsg}</Text>
                             ) : location ? (
-                                <Text style={{ color: Colors.textSecondary, fontSize: 11, marginTop: 4 }}>Mi posición: {location.coords.latitude.toFixed(4)}, {location.coords.longitude.toFixed(4)}</Text>
+                                <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4 }}>Mi posición: {location.coords.latitude.toFixed(4)}, {location.coords.longitude.toFixed(4)}</Text>
                             ) : null}
                         </View>
                     </View>
@@ -274,7 +276,7 @@ export default function RescueScreen({ route, navigation }) {
                                 />
                                 <Polyline
                                     coordinates={[originCoords, destCoords]}
-                                    strokeColor={Colors.primary}
+                                    strokeColor={colors.primary}
                                     strokeWidth={4}
                                 />
                             </MapView>
@@ -293,7 +295,7 @@ export default function RescueScreen({ route, navigation }) {
                                 </View>
                             ) : (
                                 <View style={{ alignItems: 'center', padding: 20 }}>
-                                    <MapPin color={Colors.border} size={64} style={{ marginBottom: 15 }} />
+                                    <MapPin color={colors.border} size={64} style={{ marginBottom: 15 }} />
                                     <Text style={[styles.webMapText, { fontWeight: 'bold' }]}>Ruta No Disponible</Text>
                                     <Text style={styles.webMapSubtext}>
                                         La dirección no tiene coordenadas GPS válidas. Prueba a editar el rescate y usar el selector de mapa.
@@ -372,22 +374,22 @@ export default function RescueScreen({ route, navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
     },
     scrollContent: {
         padding: 16,
         paddingBottom: 40,
     },
     card: {
-        backgroundColor: Colors.card,
+        backgroundColor: colors.card,
         borderRadius: 12,
         padding: 16,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -396,12 +398,12 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         paddingBottom: 10,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
+        borderBottomColor: colors.border,
     },
     cardTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: Colors.text,
+        color: colors.text,
     },
     refreshButton: {
         padding: 5,
@@ -415,12 +417,12 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 15,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
     },
     infoTexts: {
         flex: 1,
@@ -428,17 +430,17 @@ const styles = StyleSheet.create({
     },
     infoLabel: {
         fontSize: 12,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginBottom: 2,
     },
     infoValue: {
         fontSize: 15,
-        color: Colors.text,
+        color: colors.text,
         fontWeight: '500',
     },
     errorText: {
         fontSize: 14,
-        color: Colors.danger,
+        color: colors.danger,
         fontWeight: '500',
     },
     mapContainer: {
@@ -446,8 +448,8 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: Colors.border,
-        backgroundColor: Colors.card,
+        borderColor: colors.border,
+        backgroundColor: colors.card,
     },
     map: {
         width: '100%',
@@ -459,15 +461,15 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
     },
     webMapText: {
-        color: Colors.text,
+        color: colors.text,
         textAlign: 'center',
         fontSize: 16,
     },
     webMapSubtext: {
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
         fontSize: 12,
         marginTop: 8,
@@ -478,7 +480,7 @@ const styles = StyleSheet.create({
         marginBottom: 30,
     },
     sectionLabel: {
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         fontSize: 12,
         fontWeight: 'bold',
         marginBottom: 10,
@@ -548,16 +550,16 @@ const styles = StyleSheet.create({
         alignItems: 'center'
     },
     syncCard: {
-        backgroundColor: Colors.card,
+        backgroundColor: colors.card,
         padding: 30,
         borderRadius: 16,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         elevation: 5
     },
     syncText: {
-        color: Colors.text,
+        color: colors.text,
         marginTop: 15,
         fontSize: 16,
         fontWeight: 'bold'

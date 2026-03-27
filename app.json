@@ -29,7 +29,20 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Admite acceder a tu ubicación precisa para registrar lugares y rescates."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permite acceder a la galería para seleccionar imágenes del taller.",
+          "cameraPermission": "Permite usar tu cámara para escanear matrículas o subir evidencias."
+        }
+      ]
     ],
     "extra": {
       "eas": {

@@ -3,7 +3,7 @@ import {
     View, StyleSheet, Text, TouchableOpacity,
     Platform, FlatList, Modal, SafeAreaView
 } from 'react-native';
-import { Colors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { PremiumLoader } from '../components/PremiumLoader';
 import { ArrowLeft, ArrowRight, RefreshCw, Globe, Home, List, X, Clock, ChevronRight } from 'lucide-react-native';
 
@@ -20,6 +20,8 @@ function formatTime(date) {
 
 // ── Log panel ─────────────────────────────────────────────────────────────
 function LogPanel({ visible, log, onClose, onNavigate }) {
+    const { colors } = useTheme();
+    const log_s = getLogStyles(colors);
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
             <SafeAreaView style={log_s.container}>
@@ -79,6 +81,8 @@ function LogPanel({ visible, log, onClose, onNavigate }) {
 
 // ── CharmWebScreen ────────────────────────────────────────────────────────
 export default function CharmWebScreen() {
+    const { colors, isDark } = useTheme();
+    const styles = getStyles(colors);
     const webRef = useRef(null);
     const [loading,    setLoading]    = useState(true);
     const [canGoBack,  setCanGoBack]  = useState(false);
@@ -86,6 +90,20 @@ export default function CharmWebScreen() {
     const [currentUrl, setCurrentUrl] = useState(CHARM_ROOT);
     const [navLog,     setNavLog]     = useState([]); // registro de clics
     const [showLog,    setShowLog]    = useState(false);
+
+    // Dinámicamente aplicar el tema claro/oscuro cada vez que cambie o se cargue la página
+    const applyThemeToWebView = useCallback(() => {
+        if (Platform.OS !== 'web' && webRef.current) {
+            webRef.current.injectJavaScript(`
+                window.localStorage.setItem('APP_IS_DARK', '${isDark ? '1' : '0'}');
+                true;
+            `);
+        }
+    }, [isDark]);
+
+    React.useEffect(() => {
+        applyThemeToWebView();
+    }, [isDark, applyThemeToWebView]);
 
     const handleNavChange = useCallback((navState) => {
         setCanGoBack(navState.canGoBack);
@@ -117,11 +135,11 @@ export default function CharmWebScreen() {
         return (
             <View style={styles.container}>
                 <View style={styles.toolbar}>
-                    <Globe size={14} color={Colors.textSecondary} />
+                    <Globe size={14} color={colors.textSecondary} />
                     <Text style={styles.urlText} numberOfLines={1}> {currentUrl}</Text>
                     <View style={{ flex: 1 }} />
                     <TouchableOpacity style={styles.navBtn} onPress={() => window.location.reload()}>
-                        <RefreshCw size={18} color={Colors.text} />
+                        <RefreshCw size={18} color={colors.text} />
                     </TouchableOpacity>
                 </View>
                 <iframe 
@@ -131,7 +149,9 @@ export default function CharmWebScreen() {
                         border: 'none', 
                         width: '100%', 
                         height: '100%',
-                        backgroundColor: '#121212' // Fondo oscuro mientras carga
+                        backgroundColor: '#FFFFFF',
+                        filter: isDark ? 'invert(0.92) hue-rotate(180deg)' : 'none',
+                        colorScheme: isDark ? 'dark' : 'light',
                     }} 
                     title="Charm.li" 
                 />
@@ -144,30 +164,30 @@ export default function CharmWebScreen() {
         <View style={styles.container}>
             {/* Toolbar */}
             <View style={styles.toolbar}>
-                <TouchableOpacity style={styles.navBtn} onPress={() => webRef.current?.goBack()} disabled={!canGoBack}>
-                    <ArrowLeft size={18} color={canGoBack ? Colors.text : Colors.border} />
+                <TouchableOpacity style={[styles.navBtn, { opacity: canGoBack ? 1 : 0.3 }]} onPress={() => webRef.current?.goBack()} disabled={!canGoBack}>
+                    <ArrowLeft size={18} color={colors.text} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.navBtn} onPress={() => webRef.current?.goForward()} disabled={!canGoFwd}>
-                    <ArrowRight size={18} color={canGoFwd ? Colors.text : Colors.border} />
+                <TouchableOpacity style={[styles.navBtn, { opacity: canGoFwd ? 1 : 0.3 }]} onPress={() => webRef.current?.goForward()} disabled={!canGoFwd}>
+                    <ArrowRight size={18} color={colors.text} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.navBtn} onPress={() => webRef.current?.reload()}>
-                    <RefreshCw size={18} color={Colors.text} />
+                    <RefreshCw size={18} color={colors.text} />
                 </TouchableOpacity>
 
                 <View style={styles.urlBar}>
-                    <Globe size={11} color={Colors.textSecondary} style={{ marginRight: 5 }} />
+                    <Globe size={11} color={colors.textSecondary} style={{ marginRight: 5 }} />
                     <Text style={styles.urlText} numberOfLines={1}>
                         {currentUrl.replace('https://', '').replace('http://', '')}
                     </Text>
                 </View>
 
                 <TouchableOpacity style={styles.navBtn} onPress={() => navigateTo(CHARM_ROOT)}>
-                    <Home size={18} color={Colors.text} />
+                    <Home size={18} color={colors.text} />
                 </TouchableOpacity>
 
                 {/* Botón de log con contador */}
                 <TouchableOpacity style={styles.logBtn} onPress={() => setShowLog(true)}>
-                    <List size={18} color={Colors.primary} />
+                    <List size={18} color={colors.primary} />
                     {navLog.length > 0 && (
                         <View style={styles.badge}>
                             <Text style={styles.badgeText}>
@@ -184,28 +204,44 @@ export default function CharmWebScreen() {
                 source={{ uri: CHARM_ROOT }}
                 style={styles.webview}
                 onLoadStart={() => setLoading(true)}
-                onLoadEnd={()  => setLoading(false)}
+                onLoadEnd={()  => { setLoading(false); applyThemeToWebView(); }}
                 onNavigationStateChange={handleNavChange}
                 javaScriptEnabled
                 domStorageEnabled
+                injectedJavaScriptForMainFrameOnly={false}
+                setSupportMultipleWindows={false}
                 injectedJavaScript={`
                     (function() {
-                        const style = document.createElement('style');
-                        style.innerHTML = \`
-                            html, body { background-color: #121212 !important; color: #FFFFFF !important; }
-                            a { color: #3B5998 !important; }
-                            pre, code { background-color: #1E1E1E !important; color: #FFFFFF !important; border-color: #333333 !important; }
-                            table, tr, td, th { border-color: #333333 !important; color: #FFFFFF !important; }
-                            div, section, header, nav, footer { background-color: transparent !important; color: #FFFFFF !important; }
-                            img { opacity: 0.8; filter: contrast(1.2) brightness(0.8); }
-                            input, select, textarea { background-color: #1E1E1E !important; color: #FFFFFF !important; border: 1px solid #333333 !important; }
-                            button { background-color: #3B5998 !important; color: #FFFFFF !important; border: none !important; }
-                            /* Específico para listas de Charm.li */
-                            li { color: #FFFFFF !important; }
-                            ul { border-color: #333333 !important; }
-                            .header, .footer, #header, #footer { background-color: #1E1E1E !important; }
-                        \`;
-                        document.head.appendChild(style);
+                        // Guardar valor inicial en localStorage para sub-frames
+                        if (${isDark}) { window.localStorage.setItem('APP_IS_DARK', '1'); } 
+                        else if (!window.localStorage.getItem('APP_IS_DARK')) { window.localStorage.setItem('APP_IS_DARK', '0'); }
+
+                        const styleId = 'force-theme-nuclear';
+                        const force = () => {
+                            let s = document.getElementById(styleId);
+                            const isDarkNow = window.localStorage.getItem('APP_IS_DARK') === '1';
+                            
+                            if (isDarkNow) {
+                                if (!s) {
+                                    s = document.createElement('style');
+                                    s.id = styleId;
+                                    s.innerHTML = \`
+                                        * { color: #FFFFFF !important; background-color: transparent !important; border-color: #333333 !important; }
+                                        html, body { background-color: #000000 !important; }
+                                        a { color: #5C7CFF !important; text-decoration: underline !important; }
+                                        input, select, textarea { background-color: #1C1C1E !important; color: #FFFFFF !important; }
+                                        img { filter: brightness(0.8) !important; }
+                                    \`;
+                                    if(document.head) document.head.appendChild(s);
+                                }
+                            } else {
+                                if (s) s.remove();
+                            }
+                        };
+                        force();
+                        const obs = new MutationObserver(force);
+                        if(document.documentElement) obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+                        setInterval(force, 400);
                     })();
                     true;
                 `}
@@ -235,71 +271,71 @@ export default function CharmWebScreen() {
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.background },
+const getStyles = (colors) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
     toolbar: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: Colors.card,
+        backgroundColor: colors.card,
         paddingHorizontal: 6, paddingVertical: 7,
-        borderBottomWidth: 1, borderBottomColor: Colors.border,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
     },
     navBtn: { width: 34, height: 34, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
     urlBar: {
         flex: 1, flexDirection: 'row', alignItems: 'center',
-        backgroundColor: Colors.background, borderRadius: 20,
+        backgroundColor: colors.background, borderRadius: 20,
         paddingHorizontal: 10, paddingVertical: 5, marginHorizontal: 4,
-        borderWidth: 1, borderColor: Colors.border,
+        borderWidth: 1, borderColor: colors.border,
     },
-    urlText: { flex: 1, fontSize: 11, color: Colors.textSecondary },
+    urlText: { flex: 1, fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
     logBtn: {
         width: 34, height: 34, justifyContent: 'center', alignItems: 'center',
         borderRadius: 8, position: 'relative',
     },
     badge: {
         position: 'absolute', top: 2, right: 2,
-        backgroundColor: Colors.primary, borderRadius: 8,
+        backgroundColor: colors.primary, borderRadius: 8,
         minWidth: 16, paddingHorizontal: 3,
         alignItems: 'center', justifyContent: 'center',
     },
     badgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' },
-    webview: { flex: 1, backgroundColor: Colors.background },
-    loader: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
+    webview: { flex: 1, backgroundColor: colors.background },
+    loader: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
     loaderOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(18,18,18,0.85)' },
-    loaderText: { marginTop: 10, fontSize: 12, color: Colors.textSecondary },
+    loaderText: { marginTop: 10, fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
 });
 
-const log_s = StyleSheet.create({
-    container:  { flex: 1, backgroundColor: Colors.background },
+const getLogStyles = (colors) => StyleSheet.create({
+    container:  { flex: 1, backgroundColor: colors.background },
     header: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: Colors.card, padding: 16,
-        borderBottomWidth: 1, borderBottomColor: Colors.border,
+        backgroundColor: colors.card, padding: 16,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
     },
-    title:    { fontSize: 16, fontWeight: 'bold', color: Colors.text },
-    subtitle: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
-    closeBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center', borderRadius: 18, backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border },
+    title:    { fontSize: 16, fontWeight: 'bold', color: colors.text },
+    subtitle: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    closeBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center', borderRadius: 18, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
 
     empty:     { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    emptyText: { color: Colors.border, marginTop: 12, fontSize: 14 },
+    emptyText: { color: colors.border, marginTop: 12, fontSize: 14 },
 
     row: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: Colors.card, borderRadius: 12, padding: 12, marginBottom: 8,
-        borderWidth: 1, borderColor: Colors.border,
+        backgroundColor: colors.card, borderRadius: 12, padding: 12, marginBottom: 8,
+        borderWidth: 1, borderColor: colors.border,
     },
-    rowFirst: { borderLeftWidth: 3, borderLeftColor: Colors.primary },
+    rowFirst: { borderLeftWidth: 3, borderLeftColor: colors.primary },
     rowLeft:  { flex: 1, flexDirection: 'row', alignItems: 'flex-start' },
 
     indexBadge: {
         width: 24, height: 24, borderRadius: 12,
-        backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center',
-        marginRight: 10, marginTop: 2, borderWidth: 1, borderColor: Colors.border,
+        backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center',
+        marginRight: 10, marginTop: 2, borderWidth: 1, borderColor: colors.border,
     },
-    indexText: { fontSize: 10, fontWeight: 'bold', color: Colors.textSecondary },
+    indexText: { fontSize: 10, fontWeight: 'bold', color: colors.textSecondary },
 
-    rowTitle: { fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 2 },
-    rowUrl:   { fontSize: 11, color: Colors.textSecondary, lineHeight: 16 },
+    rowTitle: { fontSize: 14, fontWeight: '500', color: colors.text, marginBottom: 2 },
+    rowUrl:   { fontSize: 11, color: colors.textSecondary, lineHeight: 16 },
     meta:     { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-    metaText: { fontSize: 10, color: Colors.border, marginLeft: 4 },
+    metaText: { fontSize: 10, color: colors.border, marginLeft: 4 },
 });
 

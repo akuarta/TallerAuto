@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, Alert } from 'react-native';
-import { Colors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { CustomHeader } from '../components/CustomHeader';
 import { useData } from '../context/DataContext';
 import { MapPin, Clock, ChevronRight, Filter, AlertCircle, CheckCircle2, Timer, XCircle, ArrowDownCircle, ArrowUpCircle, Plus } from 'lucide-react-native';
@@ -15,6 +15,8 @@ const STATUS_CONFIG = {
 };
 
 export default function RescueListScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const { rescates, loading, updateItem, settings } = useData();
     const [activeStatus, setActiveStatus] = useState('Pendiente');
 
@@ -48,8 +50,8 @@ export default function RescueListScreen({ navigation }) {
                     >
                         <Text style={[styles.tabText, isActive && styles.activeTabText]}>{st}</Text>
                         {count > 0 && (
-                            <View style={[styles.badge, isActive ? { backgroundColor: '#FFF' } : { backgroundColor: Colors.primary }]}>
-                                <Text style={[styles.badgeText, isActive ? { color: Colors.primary } : { color: '#FFF' }]}>{count}</Text>
+                            <View style={[styles.badge, isActive ? { backgroundColor: '#FFF' } : { backgroundColor: colors.primary }]}>
+                                <Text style={[styles.badgeText, isActive ? { color: colors.primary } : { color: '#FFF' }]}>{count}</Text>
                             </View>
                         )}
                     </TouchableOpacity>
@@ -88,16 +90,16 @@ export default function RescueListScreen({ navigation }) {
                     </View>
 
                     <View style={styles.addressRow}>
-                        <MapPin size={14} color={Colors.textSecondary} />
+                        <MapPin size={14} color={colors.textSecondary} />
                         <Text style={styles.addressText} numberOfLines={1}>{item['Lugar del Rescate'] || 'Dirección no especificada'}</Text>
                     </View>
 
                     <View style={styles.footerRow}>
                         <View style={styles.timeInfo}>
-                            <Clock size={14} color={Colors.textSecondary} />
+                            <Clock size={14} color={colors.textSecondary} />
                             <Text style={styles.timeText}>{item.Fecha || ''} {item.Hora || ''}</Text>
                         </View>
-                        <ChevronRight size={20} color={Colors.border} />
+                        <ChevronRight size={20} color={colors.border} />
                     </View>
                 </View>
 
@@ -107,14 +109,14 @@ export default function RescueListScreen({ navigation }) {
                             style={styles.actionBtn} 
                             onPress={() => updateItem('rescates', item.id, { Estado: 'En Proceso' })}
                         >
-                            <ArrowDownCircle size={32} color={Colors.primary} />
+                            <ArrowDownCircle size={32} color={colors.primary} />
                         </TouchableOpacity>
                     ) : (statusLower.includes('proceso') || statusLower.includes('camino')) ? (
                         <TouchableOpacity 
                             style={styles.actionBtn} 
                             onPress={() => updateItem('rescates', item.id, { Estado: 'Finalizado' })}
                         >
-                            <ArrowUpCircle size={32} color={Colors.accent} />
+                            <ArrowUpCircle size={32} color={colors.accent} />
                         </TouchableOpacity>
                     ) : null}
                 </View>
@@ -131,7 +133,7 @@ export default function RescueListScreen({ navigation }) {
             {loading && (
                 <View style={styles.loaderContainer}>
                     <PremiumLoader size={60} />
-                    <Text style={{ color: Colors.textSecondary, marginTop: 10 }}>Cargando rescates...</Text>
+                    <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Cargando rescates...</Text>
                 </View>
             )}
 
@@ -143,7 +145,7 @@ export default function RescueListScreen({ navigation }) {
                     contentContainerStyle={styles.listContainer}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <Filter size={48} color={Colors.border} />
+                            <Filter size={48} color={colors.border} />
                             <Text style={styles.emptyTitle}>No hay rescates {!!activeStatus && activeStatus.toLowerCase()}s</Text>
                             <Text style={styles.emptySubtitle}>Los nuevos pedidos aparecerán aquí automáticamente.</Text>
                         </View>
@@ -155,7 +157,7 @@ export default function RescueListScreen({ navigation }) {
                 icon={
                     <View style={{ justifyContent: 'center', alignItems: 'center' }}>
                         <MapPin size={28} color="white" />
-                        <View style={{ position: 'absolute', right: -6, top: -4, backgroundColor: Colors.primary, borderRadius: 10, padding: 1 }}>
+                        <View style={{ position: 'absolute', right: -6, top: -4, backgroundColor: colors.primary, borderRadius: 10, padding: 1 }}>
                             <Plus size={14} color="white" strokeWidth={3} />
                         </View>
                     </View>
@@ -175,18 +177,18 @@ export default function RescueListScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
     },
     statusTabs: {
         flexDirection: 'row',
-        backgroundColor: Colors.card,
+        backgroundColor: colors.card,
         paddingHorizontal: 8,
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
+        borderBottomColor: colors.border,
     },
     tab: {
         flex: 1,
@@ -198,12 +200,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     activeTab: {
-        backgroundColor: Colors.primary,
+        backgroundColor: colors.primary,
     },
     tabText: {
         fontSize: 10,
         fontWeight: 'bold',
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         textTransform: 'uppercase',
     },
     activeTabText: {
@@ -227,13 +229,13 @@ const styles = StyleSheet.create({
         flexGrow: 1,
     },
     rescueCard: {
-        backgroundColor: Colors.card,
+        backgroundColor: colors.card,
         borderRadius: 12,
         marginBottom: 16,
         flexDirection: 'row',
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: colors.border,
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
@@ -259,11 +261,11 @@ const styles = StyleSheet.create({
     clientName: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: Colors.text,
+        color: colors.text,
     },
     vehicleInfo: {
         fontSize: 12,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginTop: 2,
     },
     statusBadge: {
@@ -285,7 +287,7 @@ const styles = StyleSheet.create({
     },
     addressText: {
         fontSize: 13,
-        color: Colors.text,
+        color: colors.text,
         marginLeft: 6,
         flex: 1,
     },
@@ -294,7 +296,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         borderTopWidth: 1,
-        borderTopColor: Colors.border,
+        borderTopColor: colors.border,
         paddingTop: 10,
     },
     timeInfo: {
@@ -303,7 +305,7 @@ const styles = StyleSheet.create({
     },
     timeText: {
         fontSize: 12,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginLeft: 6,
     },
     emptyContainer: {
@@ -315,12 +317,12 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: Colors.text,
+        color: colors.text,
         marginTop: 16,
     },
     emptySubtitle: {
         fontSize: 14,
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         textAlign: 'center',
         marginTop: 8,
         paddingHorizontal: 40,

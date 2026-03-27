@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, FlatList, StyleSheet, Text } from 'react-native';
-import { Colors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { CategoryCard } from '../components/CategoryCard';
 import { LayoutGrid, Car, Truck, Zap } from 'lucide-react-native';
 import { CustomHeader } from '../components/CustomHeader';
 
 export default function VehicleCategoryScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const { garage, loading } = useData();
 
     // Extraemos tipos únicos de la tabla garage (que tiene el campo Tipo)
@@ -16,7 +18,7 @@ export default function VehicleCategoryScreen({ navigation }) {
         const t = type.toLowerCase();
         if (t.includes('camion')) return <Truck size={24} color="#FB8C00" />;
         if (t.includes('suv')) return <LayoutGrid size={24} color="#43A047" />;
-        return <Car size={24} color={Colors.primary} />;
+        return <Car size={24} color={colors.primary} />;
     };
 
     if (loading) return <View style={styles.container}><Text style={{ color: 'white' }}>Cargando...</Text></View>;
@@ -41,7 +43,7 @@ export default function VehicleCategoryScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.background },
+const getStyles = (colors) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
     content: { padding: 16, flex: 1 },
 });

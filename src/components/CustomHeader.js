@@ -1,23 +1,32 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Menu, ArrowLeft } from 'lucide-react-native';
-import { Colors } from '../constants';
-import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export const CustomHeader = ({ title, showBack = null, leftAction = null, onLeftPress = null, leftIcon = null, rightAction = null, rightIcon = null }) => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
-    
-    // Si se provee onLeftPress o leftAction, entonces podemos "volver" o hacer la acción.
+    const { colors } = useTheme();
+
+    // Detectar si estamos dentro de un Stack y no en la pantalla raíz (index > 0)
+    // state.type === 'stack' nos asegura que no estamos leyendo el estado del Tab navigator
+    const stackDepth = useNavigationState(state => {
+        if (!state || state.type !== 'stack') return 0;
+        return state.index ?? 0;
+    });
+
+    // Si hay una acción explícita, mostrar flecha. Sino, mostrar flecha si el stack local tiene >1 pantalla.
     const actualLeftAction = leftAction || onLeftPress;
-    const canGoBack = actualLeftAction ? true : (showBack !== null ? showBack : navigation.canGoBack());
+    const canGoBack = actualLeftAction ? true : (showBack !== null ? showBack : stackDepth > 0);
+
+    console.log(`[CustomHeader] title="${title}" stackDepth=${stackDepth} canGoBack=${canGoBack}`);
 
     const handleLeftPress = () => {
         if (actualLeftAction) {
             actualLeftAction();
         } else if (canGoBack) {
-            // Si estamos dentro de un tab oculto (como Form), forzar volver al stack principal si goBack falla
             navigation.goBack();
         } else {
             navigation.openDrawer();
@@ -25,26 +34,33 @@ export const CustomHeader = ({ title, showBack = null, leftAction = null, onLeft
     };
 
     return (
-        <View style={[styles.wrapper, { paddingTop: insets.top }]}>
+        <View style={[
+            styles.wrapper, 
+            { 
+                paddingTop: insets.top,
+                backgroundColor: colors.card,
+                borderBottomColor: colors.border
+            }
+        ]}>
             <View style={styles.header}>
                 {/* Botón izquierdo */}
                 <TouchableOpacity style={styles.sideBtn} onPress={handleLeftPress}>
                     {(() => {
                         if (leftIcon) {
                             if (typeof leftIcon === 'string') {
-                                if (leftIcon === 'menu') return <Menu size={24} color={Colors.text} />;
-                                if (leftIcon === 'arrow-left') return <ArrowLeft size={24} color={Colors.text} />;
+                                if (leftIcon === 'menu') return <Menu size={24} color={colors.text} />;
+                                if (leftIcon === 'arrow-left') return <ArrowLeft size={24} color={colors.text} />;
                             }
                             return leftIcon;
                         }
                         return canGoBack
-                            ? <ArrowLeft size={24} color={Colors.text} />
-                            : <Menu size={24} color={Colors.text} />;
+                            ? <ArrowLeft size={24} color={colors.text} />
+                            : <Menu size={24} color={colors.text} />;
                     })()}
                 </TouchableOpacity>
 
                 {/* Título centrado */}
-                <Text style={styles.title} numberOfLines={1}>{title}</Text>
+                <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{title}</Text>
 
                 {/* Botón derecho (opcional) */}
                 <TouchableOpacity style={styles.sideBtn} onPress={rightAction} disabled={!rightAction}>
@@ -57,14 +73,17 @@ export const CustomHeader = ({ title, showBack = null, leftAction = null, onLeft
 
 const styles = StyleSheet.create({
     wrapper: {
-        backgroundColor: Colors.card,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
         elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3,
+        ...Platform.select({
+            web: { boxShadow: '0px 2px 3px rgba(0,0,0,0.25)' },
+            default: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 3,
+            }
+        })
     },
     header: {
         height: 56,
@@ -80,7 +99,6 @@ const styles = StyleSheet.create({
     },
     title: {
         flex: 1,
-        color: Colors.text,
         fontSize: 17,
         fontWeight: '700',
         textAlign: 'center',

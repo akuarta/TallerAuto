@@ -3,16 +3,47 @@ import { View, StyleSheet, Text } from 'react-native';
 import { FlatList, TouchableOpacity } from 'react-native-gesture-handler';
 import { Colors } from '../constants';
 import { useData } from '../context/DataContext';
-import { List, ChevronRight, Plus, Trash2, Edit2 } from 'lucide-react-native';
+import { List, ChevronRight, Plus, Trash2, Edit2, FileText } from 'lucide-react-native';
 import { CustomHeader } from '../components/CustomHeader';
 import { FAB } from '../components/FAB';
+import { formatCurrency } from '../utils/formatters';
 
 export default function GenericListScreen({ route, navigation }) {
     const { title, dataKey } = route.params;
     const allData = useData();
-    const listData = allData[dataKey] || [];
+    let listData = allData[dataKey] || [];
     const vehiculos = allData.vehiculos || [];
     const loading = allData.loading;
+
+    // Si estamos en la lista de Facturación, unificamos con el Historial de Facturas
+    if (dataKey === 'facturando') {
+        const historicalInvoices = allData.invoices || [];
+        listData = [...listData, ...historicalInvoices];
+    }
+
+    // Ordenamos por fecha (más reciente primero) si existe el campo
+    listData = [...listData].sort((a, b) => {
+        const dateA = new Date(a.Fecha || a.date || 0);
+        const dateB = new Date(b.Fecha || b.date || 0);
+        return dateB - dateA;
+    });
+
+    // Función para buscar si existe un PDF para este registro en cualquier otra lista (ej. en órdenes)
+    const findPDFInAnySheet = (item) => {
+        const id = item.Factura || item.id || item.ID_Factura || item.ID_Orden || item.TURNO;
+        if (!id) return null;
+
+        const allSheets = [allData.invoices, allData.facturando, allData.orders];
+        for (const sheet of allSheets) {
+            if (!sheet) continue;
+            const match = sheet.find(s => (s.Factura === id || s.id === id || s.ID_Factura === id || s.ID_Orden === id || s.TURNO === id));
+            if (match) {
+                const pdf = Object.entries(match).find(([k, v]) => (k.toLowerCase().includes('pdf') || String(v).toLowerCase().includes('.pdf')) && v);
+                if (pdf) return pdf[1];
+            }
+        }
+        return null;
+    };
 
     const getActualMatricula = (matriculaId) => {
         if (!matriculaId) return matriculaId;
@@ -67,19 +98,31 @@ export default function GenericListScreen({ route, navigation }) {
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.title} numberOfLines={1}>
-                                            {item.Nombre || item.Descripcion || item.Fecha || item.Marca || item.Modelo || 'Registro'}
+                                            {dataKey === 'facturando' && (item.Factura || item.id || item.ID_Factura || item.ID_Orden) 
+                                                ? `Factura #${item.Factura || item.id || item.ID_Factura || item.ID_Orden}` 
+                                                : (item.Producto || item.Servicio || item.herramienta || item.tecnico || 
+                                                   item.Nombre || item.Descripcion || item.Fecha || item.Marca || 
+                                                   item.Modelo || item.CLIENTE || 'Registro')}
                                         </Text>
-                                        <Text style={styles.subtitle} numberOfLines={1}>
-                                            {Object.entries(item)
-                                                .filter(([k, v]) => k !== 'id' && v && typeof v === 'string' && v.length < 50)
-                                                .map(([k, v]) => {
-                                                    if (k.toLowerCase() === 'matricula' || k.toLowerCase() === 'placa') {
-                                                        return getActualMatricula(v);
-                                                    }
-                                                    return v;
-                                                })
-                                                .slice(0, 3).join(' | ')}
-                                        </Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Text style={styles.subtitle} numberOfLines={1}>
+                                                {Object.entries(item)
+                                                    .filter(([k, v]) => k !== 'id' && v && typeof v === 'string' && v.length < 50 && !k.toLowerCase().includes('pdf'))
+                                                    .map(([k, v]) => {
+                                                        const keyLower = k.toLowerCase();
+                                                        if (keyLower === 'matricula' || keyLower === 'placa') {
+                                                            return getActualMatricula(v);
+                                                        }
+                                                        const isCurrency = keyLower.includes('precio') || keyLower.includes('costo') || keyLower.includes('total') || keyLower.includes('subtotal') || keyLower.includes('impuesto') || keyLower.includes('descuento');
+                                                        if (isCurrency && v) return formatCurrency(v);
+                                                        return v;
+                                                    })
+                                                    .slice(0, 3).join(' | ')}
+                                            </Text>
+                                            {Object.entries(item).some(([k, v]) => (k.toLowerCase().includes('pdf') || String(v).toLowerCase().includes('.pdf')) && v) && (
+                                                <FileText size={14} color={Colors.primary} style={{ marginLeft: 8 }} />
+                                            )}
+                                        </View>
                                     </View>
                                 </TouchableOpacity>
 

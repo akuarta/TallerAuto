@@ -1,39 +1,38 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Colors } from '../constants';
 import { ChevronRight, Folder } from 'lucide-react-native';
+import { useTheme } from '../context/ThemeContext';
 
-export const CategoryCard = ({ title, subtitle, onPress, icon = <Folder size={24} color={Colors.primary} /> }) => {
+export const CategoryCard = ({ title, subtitle, onPress, icon }) => {
+    const { colors } = useTheme();
+
     return (
-        <TouchableOpacity style={styles.card} onPress={onPress}>
-            <View style={styles.iconContainer}>
-                {icon}
+        <TouchableOpacity style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={onPress}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.primary + '20' }]}>
+                {icon || <Folder size={24} color={colors.primary} />}
             </View>
             <View style={styles.info}>
-                <Text style={styles.title}>{title}</Text>
-                {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+                <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+                {!!subtitle && <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>}
             </View>
-            <ChevronRight size={20} color={Colors.textSecondary} />
+            <ChevronRight size={20} color={colors.textSecondary} />
         </TouchableOpacity>
     );
 };
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: Colors.card,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: Colors.border,
     },
     iconContainer: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#3B599820',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -42,12 +41,10 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     title: {
-        color: Colors.text,
         fontSize: 16,
         fontWeight: 'bold',
     },
     subtitle: {
-        color: Colors.textSecondary,
         fontSize: 14,
         marginTop: 4,
     },

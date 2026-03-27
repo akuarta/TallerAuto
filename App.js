@@ -6,6 +6,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { DataProvider } from './src/context/DataContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { Colors } from './src/constants';
 import { StatusBar } from 'expo-status-bar';
 
@@ -22,6 +23,7 @@ import VehicleListScreen from './src/screens/VehicleListScreen';
 import VehicleDetailsScreen from './src/screens/VehicleDetailsScreen';
 import ClientListScreen from './src/screens/ClientListScreen';
 import ServiceListScreen from './src/screens/ServiceListScreen';
+import FinancialReportScreen from './src/screens/FinancialReportScreen';
 import GenericListScreen from './src/screens/GenericListScreen';
 import GenericDetailsScreen from './src/screens/GenericDetailsScreen';
 import VehicleSearchScreen from './src/screens/VehicleSearchScreen';
@@ -36,38 +38,27 @@ import RescueScreen from './src/screens/RescueScreen';
 import RescueListScreen from './src/screens/RescueListScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import VehicleTechnicalDetailScreen from './src/screens/VehicleTechnicalDetailScreen';
-
 import CharmWebScreen from './src/screens/CharmWebScreen';
-
-import { Home, ClipboardList, List, Wrench, LayoutDashboard, Search, MapPin, Settings, Globe } from 'lucide-react-native';
 import SplashScreen from './src/screens/SplashScreen';
 import { useData } from './src/context/DataContext';
+import { Home, ClipboardList, List, Wrench, Search, MapPin, Settings, Globe, PieChart, FileText } from 'lucide-react-native';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const Drawer = createDrawerNavigator();
 
-// Silenciar la molesta advertencia de React Navigation en Web (falso positivo)
+// Suppress React Navigation web warnings
 if (Platform.OS === 'web') {
   const originalConsoleError = console.error;
   console.error = (...args) => {
     if (typeof args[0] === 'string' && (args[0].includes('Blocked aria-hidden') || args[0].includes('pointerEvents'))) return;
     originalConsoleError(...args);
   };
-  
-  const originalConsoleWarn = console.warn;
-  console.warn = (...args) => {
-    if (typeof args[0] === 'string' && (args[0].includes('Blocked aria-hidden') || args[0].includes('pointerEvents'))) return;
-    originalConsoleWarn(...args);
-  };
 }
 
 function VehicleReferenceStack() {
   return (
-    <Stack.Navigator screenOptions={{
-      headerShown: false,
-      cardStyle: { backgroundColor: Colors.background }
-    }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: Colors.background } }}>
       <Stack.Screen name="VehicleCategories" component={VehicleCategoryScreen} />
       <Stack.Screen name="BrandList" component={BrandListScreen} />
       <Stack.Screen name="ModelList" component={ModelListScreen} />
@@ -77,164 +68,51 @@ function VehicleReferenceStack() {
   );
 }
 
-
+function BillingStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: Colors.background } }}>
+      <Stack.Screen name="FinancialReport" component={FinancialReportScreen} />
+      <Stack.Screen name="BillingHome" component={InvoiceListScreen} />
+      <Stack.Screen name="GenericDetails" component={GenericDetailsScreen} />
+      <Stack.Screen name="Form" component={FormScreen} />
+    </Stack.Navigator>
+  );
+}
 
 function MainTabs() {
   return (
-    <Tab.Navigator
-      backBehavior="history"
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen
-        name="Dashboard"
-        component={DashboardScreen}
-        options={{
-          tabBarIcon: ({ color }) => <Home color={color} size={24} />,
-          tabBarLabel: 'INICIO',
-        }}
-      />
-      <Tab.Screen
-        name="VehicleSearch"
-        component={VehicleSearchScreen}
-        options={{
-          tabBarIcon: ({ color }) => <Search color={color} size={24} />,
-          tabBarLabel: 'BUSCAR',
-        }}
-      />
-      <Tab.Screen
-        name="CharmWeb"
-        component={CharmWebScreen}
-        options={{
-          tabBarIcon: ({ color }) => <Globe color={color} size={24} />,
-          tabBarLabel: 'MANUALES',
-        }}
-      />
-      <Tab.Screen
-        name="Services"
-        component={ServiceListScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="Orders"
-        component={OrderListScreen}
-        options={{
-          tabBarIcon: ({ color }) => <ClipboardList color={color} size={24} />,
-          tabBarLabel: 'ORDENES'
-        }}
-      />
-      <Tab.Screen
-        name="Billing"
-        component={InvoiceListScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="Garage"
-        component={GarageScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="Rescue"
-        component={RescueListScreen}
-        options={{
-          tabBarIcon: ({ color }) => <MapPin color={color} size={24} />,
-          tabBarLabel: 'RESCATE'
-        }}
-      />
-      <Tab.Screen
-        name="RescueDetails"
-        component={RescueScreen}
-        initialParams={{ rescue: {} }}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="AppointmentList"
-        component={AppointmentListScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="VehicleManager"
-        component={VehicleManagerScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="ClientList"
-        component={ClientListScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="VehicleCategories"
-        component={VehicleReferenceStack}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="InvoicingList"
-        component={GenericListScreen}
-        initialParams={{ title: 'Facturando', dataKey: 'facturando' }}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="Inventory"
-        component={GenericListScreen}
-        initialParams={{ title: 'Productos / Inventario', dataKey: 'productos' }}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="Entradas"
-        component={GenericListScreen}
-        initialParams={{ title: 'Entradas de Taller', dataKey: 'entradas' }}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="Salidas"
-        component={GenericListScreen}
-        initialParams={{ title: 'Salidas de Taller', dataKey: 'salidas' }}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="TechnicianList"
-        component={TechnicianListScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="GenericDetails"
-        component={GenericDetailsScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-
-
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="VehicleTechnicalDetail"
-        component={VehicleTechnicalDetailScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="VehicleDetails"
-        component={VehicleDetailsScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
-      <Tab.Screen
-        name="Form"
-        component={FormScreen}
-        options={{ unmountOnBlur: true, tabBarButton: () => null }}
-      />
+    <Tab.Navigator backBehavior="history" tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
+      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarIcon: ({ color }) => <Home color={color} size={24} />, tabBarLabel: 'INICIO' }} />
+      <Tab.Screen name="VehicleSearch" component={VehicleSearchScreen} options={{ tabBarIcon: ({ color }) => <Search color={color} size={24} />, tabBarLabel: 'BUSCAR' }} />
+      <Tab.Screen name="CharmWeb" component={CharmWebScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="Services" component={ServiceListScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="Orders" component={OrderListScreen} options={{ tabBarIcon: ({ color }) => <ClipboardList color={color} size={24} />, tabBarLabel: 'ORDENES' }} />
+      <Tab.Screen name="Billing" component={BillingStack} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="Garage" component={GarageScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="Rescue" component={RescueListScreen} options={{ tabBarIcon: ({ color }) => <MapPin color={color} size={24} />, tabBarLabel: 'RESCATE' }} />
+      <Tab.Screen name="RescueDetails" component={RescueScreen} initialParams={{ rescue: {} }} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="AppointmentList" component={AppointmentListScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="VehicleManager" component={VehicleManagerScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="ClientList" component={ClientListScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="VehicleCategories" component={VehicleReferenceStack} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="InvoicingList" component={GenericListScreen} initialParams={{ title: 'Facturado', dataKey: 'facturando' }} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="Inventory" component={GenericListScreen} initialParams={{ title: 'Productos / Inventario', dataKey: 'productos' }} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="Entradas" component={GenericListScreen} initialParams={{ title: 'Entradas de Taller', dataKey: 'entradas' }} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="Salidas" component={GenericListScreen} initialParams={{ title: 'Salidas de Taller', dataKey: 'salidas' }} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="Gastos" component={GenericListScreen} initialParams={{ title: 'Historial de Gastos', dataKey: 'gastos' }} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="TechnicianList" component={TechnicianListScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="Form" component={FormScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="GenericDetails" component={GenericDetailsScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="VehicleDetails" component={VehicleDetailsScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
+      <Tab.Screen name="VehicleTechnicalDetail" component={VehicleTechnicalDetailScreen} options={{ unmountOnBlur: true, tabBarButton: () => null }} />
     </Tab.Navigator>
   );
 }
 
 function MainStack() {
   return (
-    <Stack.Navigator screenOptions={{
-      headerShown: false,
-      cardStyle: { backgroundColor: Colors.background }
-    }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: Colors.background } }}>
       <Stack.Screen name="Tabs" component={MainTabs} />
     </Stack.Navigator>
   );
@@ -250,13 +128,7 @@ function AppContent() {
   return (
     <NavigationContainer>
       <StatusBar style="light" />
-      <Drawer.Navigator
-        drawerContent={(props) => <CustomDrawerContent {...props} />}
-        screenOptions={{
-          headerShown: false,
-          drawerStyle: { width: 300 },
-        }}
-      >
+      <Drawer.Navigator drawerContent={(props) => <CustomDrawerContent {...props} />} screenOptions={{ headerShown: false, drawerStyle: { width: 300 } }}>
         <Drawer.Screen name="Main" component={MainStack} />
       </Drawer.Navigator>
     </NavigationContainer>
@@ -268,7 +140,9 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider style={{ flex: 1 }}>
         <DataProvider>
-          <AppContent />
+          <ThemeProvider>
+            <AppContent />
+          </ThemeProvider>
         </DataProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

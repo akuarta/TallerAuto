@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Colors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Solo mostramos los tabs que tengan un tabBarIcon definido
 export function CustomTabBar({ state, descriptors, navigation }) {
     const insets = useSafeAreaInsets();
+    const { colors } = useTheme();
 
     const visibleRoutes = state.routes.filter((route) => {
         const { options } = descriptors[route.key];
@@ -14,11 +15,18 @@ export function CustomTabBar({ state, descriptors, navigation }) {
     });
 
     return (
-        <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 6) }]}>
+        <View style={[
+            styles.container, 
+            { 
+                paddingBottom: Math.max(insets.bottom, 6),
+                backgroundColor: colors.card,
+                borderTopColor: colors.border
+            }
+        ]}>
             {visibleRoutes.map((route) => {
                 const { options } = descriptors[route.key];
                 const isFocused = state.index === state.routes.indexOf(route);
-                const color = isFocused ? Colors.primary : Colors.textSecondary;
+                const color = isFocused ? colors.primary : colors.textSecondary;
 
                 const onPress = () => {
                     const event = navigation.emit({
@@ -52,9 +60,7 @@ export function CustomTabBar({ state, descriptors, navigation }) {
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
-        backgroundColor: Colors.card,
         borderTopWidth: 1,
-        borderTopColor: Colors.border,
         paddingTop: 8,
     },
     tab: {

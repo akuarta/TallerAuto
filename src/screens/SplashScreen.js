@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
-import { Colors } from '../constants';
+import { View, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 import { Wrench } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { PremiumLoader } from '../components/PremiumLoader';
@@ -8,6 +8,8 @@ import { PremiumLoader } from '../components/PremiumLoader';
 const { width, height } = Dimensions.get('window');
 
 export default function SplashScreen() {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
@@ -16,12 +18,12 @@ export default function SplashScreen() {
             Animated.timing(fadeAnim, {
                 toValue: 1,
                 duration: 1000,
-                useNativeDriver: true,
+                useNativeDriver: Platform.OS !== 'web',
             }),
             Animated.spring(scaleAnim, {
                 toValue: 1,
                 friction: 4,
-                useNativeDriver: true,
+                useNativeDriver: Platform.OS !== 'web',
             })
         ]).start();
     }, []);
@@ -35,7 +37,7 @@ export default function SplashScreen() {
             ]}>
                 <View style={styles.logoContainer}>
                     <View style={styles.iconCircle}>
-                        <Wrench size={50} color={Colors.primary} />
+                        <Wrench size={50} color={colors.primary} />
                     </View>
                 </View>
                 <Text style={styles.title}>TALLER PREMIUM</Text>
@@ -54,10 +56,10 @@ export default function SplashScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -76,22 +78,27 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: Colors.primary + '40',
+        borderColor: colors.primary + '40',
         elevation: 10,
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 15,
+        ...Platform.select({
+            web: { boxShadow: `0 0 15px ${colors.primary}` },
+            default: {
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.5,
+                shadowRadius: 15,
+            }
+        })
     },
     title: {
-        color: Colors.text,
+        color: colors.text,
         fontSize: 32,
         fontWeight: 'bold',
         letterSpacing: 2,
         marginBottom: 8,
     },
     subtitle: {
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         fontSize: 16,
         letterSpacing: 1,
         marginBottom: 50,
@@ -100,7 +107,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     loadingText: {
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         marginTop: 15,
         fontSize: 14,
         fontStyle: 'italic',
@@ -110,7 +117,7 @@ const styles = StyleSheet.create({
         bottom: 30,
     },
     version: {
-        color: Colors.textSecondary,
+        color: colors.textSecondary,
         fontSize: 12,
         opacity: 0.5,
     }

@@ -1,9 +1,10 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { smartFetch } from '../utils/smartFetch';
 
 const DataContext = createContext({});
 
-const API_URL = "https://script.google.com/macros/s/AKfycbz2y8bdW3AoJFBt3XHZf3APMwXa8grTUWfMxiq-1DXMU6qvywSt11tbyaMfRuQTkKuw/exec";
+export const API_URL = "https://script.google.com/macros/s/AKfycbz0B5bY96xFg_VEXAT48zQ_3RtDFjc9YeeCcogUZNfNSxYUxZMS6rJNSZlvYHKmJ3QA/exec";
 
 export const DataProvider = ({ children }) => {
   const [data, setData] = useState({
@@ -25,6 +26,7 @@ export const DataProvider = ({ children }) => {
     herramientas: [],
     vehiculos: [],
     rescates: [],
+    gastos: [],
   });
 
   const EXPECTED_IDS = {
@@ -40,6 +42,7 @@ export const DataProvider = ({ children }) => {
     'orders': ['ID_Orden'],
     'invoices': ['Factura', 'ID_Factura', 'ID_Facturacion'],
     'servicios': ['ID_Servicio'],
+    'gastos': ['ID_Gasto'],
   };
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -92,7 +95,7 @@ export const DataProvider = ({ children }) => {
       } else {
         setRefreshing(true);
       }
-      const response = await fetch(API_URL);
+      const response = await smartFetch(API_URL);
       const result = await response.json();
 
       // Función para normalizar objetos (ID -> id, y asegurar que id sea string)
@@ -117,11 +120,14 @@ export const DataProvider = ({ children }) => {
             );
         }
 
-        const rawId = idKey ? item[idKey] : (item.id || item.ID || item.Id);
+        const rawId = idKey ? item[idKey] : (item.id || item.ID || item.Id || item.Identificador);
         const id = rawId ? String(rawId) : Math.random().toString(36).substr(2, 9);
 
         // Crear copia normalizada para uso interno pero manteniendo claves originales
         const normalizedItem = { ...item, id };
+        
+        // Log si no hay ID para depuración
+        if (!rawId) console.log(`Warning: Row in ${tableKey} has no valid ID. Assigned: ${id}`);
 
         // Formatear fechas ISO feas ("2025-01-21T04:00:00.000Z" -> "2025-01-21")
         Object.keys(normalizedItem).forEach(k => {
@@ -168,12 +174,18 @@ export const DataProvider = ({ children }) => {
         usuarios: normalize(result.USUARIOS, 'usuarios'),
         vehiculos: normalize(result.VEHICULOS, 'vehiculos'),
         rescates: normalize(result.RESCATES || result.rescates, 'rescates'),
+        gastos: normalize(result.GASTOS || result.gastos, 'gastos'),
       });
       setLoading(false);
       setRefreshing(false);
       setHasLoaded(true);
     } catch (error) {
       console.error("Error loading remote data:", error);
+      try {
+        const response = await fetch(API_URL);
+        const text = await response.text();
+        console.log("Raw response (for debugging):", text.substring(0, 500));
+      } catch (e) {}
       setLoading(false);
       setRefreshing(false);
     }

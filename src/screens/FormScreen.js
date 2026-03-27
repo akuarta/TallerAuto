@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert,
 import { Colors } from '../constants';
 import { PremiumLoader } from '../components/PremiumLoader';
 import { CustomHeader } from '../components/CustomHeader';
+import { ScanModal } from '../components/ScanModal';
 import { useData } from '../context/DataContext';
 import { Save, X, Lock, Trash2, Calendar, Camera, Plus, Phone, Search as SearchIcon, Star, AlertTriangle, MapPin, CheckSquare, Square } from 'lucide-react-native';
 import * as Contacts from 'expo-contacts';
@@ -26,6 +27,14 @@ export default function FormScreen({ route, navigation }) {
     const [showYearPicker, setShowYearPicker] = useState(false);
     const [tempMonth, setTempMonth] = useState('01');
     const [tempYear, setTempYear] = useState(new Date().getFullYear().toString());
+    const [showRealScanner, setShowRealScanner] = useState(false);
+    const [scanTargetField, setScanTargetField] = useState('');
+
+    const handleRealScan = (result) => {
+        if (scanTargetField) {
+            setFormData(prev => ({ ...prev, [scanTargetField]: result }));
+        }
+    };
 
     // Es edición si tiene un ID (lo que significa que ya existe en la base de datos)
     const isEdit = !!(item && item.id);
@@ -97,6 +106,7 @@ export default function FormScreen({ route, navigation }) {
         if (f.includes('cita')) return 'CIT';
         if (f.includes('factura')) return 'FAC';
         if (f.includes('herramienta')) return 'TOOL';
+        if (f.includes('gasto')) return 'GAS';
 
         // Fallback al título del formulario
         const titleLower = title?.toLowerCase() || '';
@@ -1467,12 +1477,12 @@ export default function FormScreen({ route, navigation }) {
                                                 <Calendar size={24} color={Colors.primary} />
                                             </TouchableOpacity>
                                         )}
-                                        {(field.toLowerCase() === 'matricula' || field.toLowerCase().includes('vin')) && (
+                                        {(field.toLowerCase() === 'matricula' || field.toLowerCase() === 'placa' || field.toLowerCase().includes('vin')) && (
                                             <TouchableOpacity
                                                 style={styles.calendarButton}
                                                 onPress={() => {
-                                                    showAlert("Escáner", `Iniciando escáner para ${field}... (Simulado)`);
-                                                    // Aquí iría la lógica de OCR real
+                                                    setScanTargetField(field);
+                                                    setShowRealScanner(true);
                                                 }}
                                             >
                                                 <Camera size={24} color={Colors.primary} />
@@ -2091,6 +2101,14 @@ export default function FormScreen({ route, navigation }) {
                     </View>
                 </View>
             </Modal>
+            
+            <ScanModal 
+                visible={showRealScanner} 
+                onClose={() => setShowRealScanner(false)} 
+                onScan={handleRealScan} 
+                field={scanTargetField} 
+                colors={{ primary: Colors.primary, background: Colors.background, text: Colors.text, card: Colors.card }} 
+            />
         </KeyboardAvoidingView>
     );
 }

@@ -1,32 +1,33 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Platform } from 'react-native';
-import { Colors } from '../constants';
-import { CustomHeader } from '../components/CustomHeader';
 import { useData } from '../context/DataContext';
+import { useTheme } from '../context/ThemeContext';
+import { CustomHeader } from '../components/CustomHeader';
 import { FileText, ChevronLeft, Share2, Printer, ShieldCheck, Wrench, Calendar, ChevronRight, LayoutGrid, Zap, HelpCircle } from 'lucide-react-native';
 
-const DetailItem = ({ label, value }) => (
-    <View style={styles.itemContainer}>
-        <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>{value}</Text>
+const DetailItem = ({ label, value, colors }) => (
+    <View style={[styles.itemContainer, { borderBottomColor: colors.border + '50' }]}>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+        <Text style={[styles.value, { color: colors.text }]}>{value}</Text>
     </View>
 );
 
 export default function VehicleDetailsScreen({ route, navigation }) {
     const { vehicle } = route.params || {};
     const { getOrdenesByVehiculo } = useData();
+    const { colors } = useTheme();
 
     if (!vehicle || Object.keys(vehicle).length === 0) {
         return (
-            <View style={{ flex: 1, backgroundColor: Colors.background }}>
+            <View style={{ flex: 1, backgroundColor: colors.background }}>
                 <CustomHeader 
                     title="DETALLES" 
                     leftAction={() => navigation.navigate('VehicleManager')}
                     leftIcon={<ChevronLeft size={24} color="#FFF" />}
                 />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-                    <HelpCircle size={48} color={Colors.border} />
-                    <Text style={{ color: Colors.textSecondary, marginTop: 15, textAlign: 'center' }}>
+                    <HelpCircle size={48} color={colors.border} />
+                    <Text style={{ color: colors.textSecondary, marginTop: 15, textAlign: 'center' }}>
                         No se ha podido cargar la información de este vehículo.
                     </Text>
                 </View>
@@ -89,7 +90,7 @@ export default function VehicleDetailsScreen({ route, navigation }) {
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: Colors.background }}>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
             <CustomHeader 
                 title="DETALLES" 
                 leftAction={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('VehicleManager')}
@@ -102,33 +103,33 @@ export default function VehicleDetailsScreen({ route, navigation }) {
                 <View style={styles.headerSection}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.header}>{vehicle.Marca} {vehicle.Modelo}</Text>
-                            <Text style={styles.subHeader}>
+                            <Text style={[styles.header, { color: colors.text }]}>{vehicle.Marca} {vehicle.Modelo}</Text>
+                            <Text style={[styles.subHeader, { color: colors.textSecondary }]}>
                                 {vehicle['Año de Fabricacion'] || vehicle.Año || ''} {(vehicle.Matricula) ? `• ${vehicle.Matricula}` : ''}
                             </Text>
                         </View>
                         {isLocked && (
-                            <View style={styles.lockedBadge}>
-                                <ShieldCheck size={16} color={Colors.primary} />
-                                <Text style={styles.lockedText}>VINCULADO</Text>
+                            <View style={[styles.lockedBadge, { backgroundColor: colors.primary + '20' }]}>
+                                <ShieldCheck size={16} color={colors.primary} />
+                                <Text style={[styles.lockedText, { color: colors.primary }]}>VINCULADO</Text>
                             </View>
                         )}
                     </View>
                 </View>
 
                 {/* INFORMACIÓN GENERAL */}
-                <View style={styles.section}>
+                <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={styles.sectionHeader}>
-                        <LayoutGrid size={18} color={Colors.primary} />
-                        <Text style={styles.sectionTitle}>INFORMACIÓN GENERAL</Text>
+                        <LayoutGrid size={18} color={colors.primary} />
+                        <Text style={[styles.sectionTitle, { color: colors.primary }]}>INFORMACIÓN GENERAL</Text>
                     </View>
                     {Object.entries(vehicle).filter(([k]) => !['id', 'Marca', 'Modelo', 'Placa', 'Matricula', 'Manual_Tecnico_Path', 'ID_Manual_Tecnico', 'Manual_Tecnico'].includes(k)).length === 0 ? (
-                        <Text style={styles.emptyTextSmall}>No hay campos adicionales registrados.</Text>
+                        <Text style={[styles.emptyTextSmall, { color: colors.textSecondary }]}>No hay campos adicionales registrados.</Text>
                     ) : (
                         Object.entries(vehicle).map(([key, value]) => {
                             if (['id', 'Marca', 'Modelo', 'Placa', 'Matricula', 'Manual_Tecnico_Path', 'ID_Manual_Tecnico', 'Manual_Tecnico'].includes(key)) return null;
                             if (!value || value === '') return null;
-                            return <DetailItem key={key} label={key.toUpperCase()} value={value.toString()} />;
+                            return <DetailItem key={key} label={key.toUpperCase()} value={value.toString()} colors={colors} />;
                         })
                     )}
                 </View>
@@ -136,18 +137,22 @@ export default function VehicleDetailsScreen({ route, navigation }) {
                 {/* Sección Manual Técnico */}
                 <View style={styles.manualCardWrapper}>
                     <TouchableOpacity 
-                        style={[styles.manualCard, isLocked && styles.manualCardActive]} 
+                        style={[
+                            styles.manualCard, 
+                            { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: colors.textSecondary },
+                            isLocked && [styles.manualCardActive, { borderLeftColor: colors.primary, backgroundColor: colors.primary + '05' }]
+                        ]} 
                         onPress={handleOpenManual}
                         activeOpacity={0.8}
                     >
-                        <View style={[styles.manualIconContainer, isLocked && { backgroundColor: Colors.primary + '20' }]}>
-                            <FileText size={28} color={isLocked ? Colors.primary : Colors.textSecondary} />
+                        <View style={[styles.manualIconContainer, { backgroundColor: colors.background }, isLocked && { backgroundColor: colors.primary + '20' }]}>
+                            <FileText size={28} color={isLocked ? colors.primary : colors.textSecondary} />
                         </View>
                         <View style={{ flex: 1, marginLeft: 15 }}>
-                            <Text style={[styles.manualTitle, isLocked && { color: Colors.primary }]}>
+                            <Text style={[styles.manualTitle, { color: colors.text }, isLocked && { color: colors.primary }]}>
                                 {isLocked ? 'Documentación Técnica' : 'Vincular Manual Técnico'}
                             </Text>
-                            <Text style={styles.manualDesc}>
+                            <Text style={[styles.manualDesc, { color: colors.textSecondary }]}>
                                 {isLocked 
                                     ? 'Consultar diagramas, motor y despiece oficial.' 
                                     : 'Busca el manual para este modelo.'}
@@ -156,7 +161,7 @@ export default function VehicleDetailsScreen({ route, navigation }) {
                     </TouchableOpacity>
 
                     {isLocked && (
-                        <View style={styles.quickActions}>
+                        <View style={[styles.quickActions, { backgroundColor: colors.card, borderColor: colors.border, borderTopColor: colors.border + '50' }]}>
                             <TouchableOpacity 
                                 style={styles.quickBtn} 
                                 onPress={() => handleOpenSection('Repair and Diagnosis')}
@@ -164,7 +169,7 @@ export default function VehicleDetailsScreen({ route, navigation }) {
                                 <View style={[styles.quickIcon, { backgroundColor: '#722ED115' }]}>
                                     <Wrench size={18} color="#722ED1" />
                                 </View>
-                                <Text style={styles.quickText}>REPAIR & DIAG</Text>
+                                <Text style={[styles.quickText, { color: colors.textSecondary }]}>REPAIR & DIAG</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity 
@@ -174,7 +179,7 @@ export default function VehicleDetailsScreen({ route, navigation }) {
                                 <View style={[styles.quickIcon, { backgroundColor: '#08979C15' }]}>
                                     <Zap size={18} color="#08979C" />
                                 </View>
-                                <Text style={styles.quickText}>DIAGRAMS</Text>
+                                <Text style={[styles.quickText, { color: colors.textSecondary }]}>DIAGRAMS</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity 
@@ -184,50 +189,50 @@ export default function VehicleDetailsScreen({ route, navigation }) {
                                 <View style={[styles.quickIcon, { backgroundColor: '#389E0D15' }]}>
                                     <Calendar size={18} color="#389E0D" />
                                 </View>
-                                <Text style={styles.quickText}>MANUAL</Text>
+                                <Text style={[styles.quickText, { color: colors.textSecondary }]}>MANUAL</Text>
                             </TouchableOpacity>
                         </View>
                     )}
                 </View>
 
                 {/* Historial de Servicios */}
-                <View style={styles.section}>
+                <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={styles.sectionHeader}>
-                        <LayoutGrid size={18} color={Colors.primary} />
-                        <Text style={styles.sectionTitle}>HISTORIAL DE TRABAJOS</Text>
+                        <LayoutGrid size={18} color={colors.primary} />
+                        <Text style={[styles.sectionTitle, { color: colors.primary }]}>HISTORIAL DE TRABAJOS</Text>
                     </View>
                     
                     {history.length === 0 ? (
                         <View style={styles.emptyHistory}>
-                            <Wrench size={32} color={Colors.border} style={{ marginBottom: 10 }} />
-                            <Text style={styles.emptyText}>Sin historial de servicios registrados.</Text>
-                            <Text style={styles.emptySubtext}>Las órdenes de trabajo aparecerán aquí automáticamente.</Text>
+                            <Wrench size={32} color={colors.border} style={{ marginBottom: 10 }} />
+                            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Sin historial de servicios registrados.</Text>
+                            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Las órdenes de trabajo aparecerán aquí automáticamente.</Text>
                         </View>
                     ) : (
                         history.map((order, index) => (
                             <TouchableOpacity 
                                 key={index} 
-                                style={styles.historyItem}
+                                style={[styles.historyItem, { borderBottomColor: colors.border + '50' }]}
                                 onPress={() => navigation.navigate('GenericDetails', { item: order, title: 'Órden de Trabajo' })}
                             >
                                 <View style={styles.historyLeft}>
                                     <View style={styles.dateBadge}>
-                                        <Calendar size={14} color={Colors.textSecondary} />
-                                        <Text style={styles.dateText}>{order.Fecha || 'Reciente'}</Text>
+                                        <Calendar size={14} color={colors.textSecondary} />
+                                        <Text style={[styles.dateText, { color: colors.textSecondary }]}>{order.Fecha || 'Reciente'}</Text>
                                     </View>
-                                    <Text style={styles.serviceName}>{order.Servicios || order.Motivo || 'Mantenimiento General'}</Text>
-                                    <Text style={styles.serviceDetail}>Odómetro: {order.Odometer || order.Kilometraje || 'N/D'}</Text>
+                                    <Text style={[styles.serviceName, { color: colors.text }]}>{order.Servicios || order.Motivo || 'Mantenimiento General'}</Text>
+                                    <Text style={[styles.serviceDetail, { color: colors.textSecondary }]}>Odómetro: {order.Odometer || order.Kilometraje || 'N/D'}</Text>
                                 </View>
-                                <ChevronRight size={18} color={Colors.border} />
+                                <ChevronRight size={18} color={colors.border} />
                             </TouchableOpacity>
                         ))
                     )}
                 </View>
 
                 <View style={styles.actionsBox}>
-                    <TouchableOpacity style={styles.actionBtn}>
-                        <Printer size={20} color={Colors.textSecondary} />
-                        <Text style={styles.actionBtnText}>IMPRIMIR FICHA</Text>
+                    <TouchableOpacity style={[styles.actionBtn, { borderColor: colors.border }]}>
+                        <Printer size={20} color={colors.textSecondary} />
+                        <Text style={[styles.actionBtnText, { color: colors.textSecondary }]}>IMPRIMIR FICHA</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -238,39 +243,39 @@ export default function VehicleDetailsScreen({ route, navigation }) {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     headerSection: { padding: 20 },
-    header: { fontSize: 26, fontWeight: 'bold', color: Colors.text, marginBottom: 4 },
-    subHeader: { fontSize: 18, color: Colors.textSecondary },
-    lockedBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.primary + '20', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-    lockedText: { color: Colors.primary, fontSize: 10, fontWeight: 'bold', marginLeft: 5 },
-    section: { backgroundColor: Colors.card, borderRadius: 16, margin: 16, marginTop: 0, padding: 20, borderWidth: 1, borderColor: Colors.border },
+    header: { fontSize: 26, fontWeight: 'bold', marginBottom: 4 },
+    subHeader: { fontSize: 18 },
+    lockedBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+    lockedText: { fontSize: 10, fontWeight: 'bold', marginLeft: 5 },
+    section: { borderRadius: 16, margin: 16, marginTop: 0, padding: 20, borderWidth: 1 },
     sectionHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-    sectionTitle: { color: Colors.primary, fontSize: 12, fontWeight: 'bold', letterSpacing: 1, marginLeft: 8 },
-    itemContainer: { marginBottom: 18, borderBottomWidth: 1, borderBottomColor: Colors.border + '50', paddingBottom: 10 },
-    label: { color: Colors.textSecondary, fontSize: 13, marginBottom: 4 },
-    value: { color: Colors.text, fontSize: 17, fontWeight: '500' },
+    sectionTitle: { fontSize: 12, fontWeight: 'bold', letterSpacing: 1, marginLeft: 8 },
+    itemContainer: { marginBottom: 18, borderBottomWidth: 1, paddingBottom: 10 },
+    label: { fontSize: 13, marginBottom: 4 },
+    value: { fontSize: 17, fontWeight: '500' },
     manualCardWrapper: { marginBottom: 16 },
     manualCard: {
-        flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, marginHorizontal: 16, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, borderLeftWidth: 4, borderLeftColor: Colors.textSecondary 
+        flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, padding: 20, borderRadius: 16, borderWidth: 1, borderLeftWidth: 4 
     },
-    manualCardActive: { borderLeftColor: Colors.primary, backgroundColor: Colors.primary + '05', borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottomWidth: 0 },
-    manualIconContainer: { width: 50, height: 50, borderRadius: 12, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center' },
-    manualTitle: { fontSize: 16, fontWeight: 'bold', color: Colors.text },
-    manualDesc: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
-    quickActions: { flexDirection: 'row', backgroundColor: Colors.card, marginHorizontal: 16, padding: 15, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, borderWidth: 1, borderColor: Colors.border, borderTopWidth: 1, borderTopColor: Colors.border + '50', justifyContent: 'space-between' },
+    manualCardActive: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderBottomWidth: 0 },
+    manualIconContainer: { width: 50, height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    manualTitle: { fontSize: 16, fontWeight: 'bold' },
+    manualDesc: { fontSize: 12, marginTop: 2 },
+    quickActions: { flexDirection: 'row', marginHorizontal: 16, padding: 15, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, borderWidth: 1, borderTopWidth: 1, justifyContent: 'space-between' },
     quickBtn: { alignItems: 'center', flex: 1 },
     quickIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
-    quickText: { color: Colors.textSecondary, fontSize: 9, fontWeight: 'bold' },
+    quickText: { fontSize: 9, fontWeight: 'bold' },
     emptyHistory: { paddingVertical: 20, alignItems: 'center' },
-    emptyText: { color: Colors.textSecondary, fontSize: 13, fontStyle: 'italic' },
-    emptySubtext: { color: Colors.textSecondary, fontSize: 11, marginTop: 4, textAlign: 'center' },
-    emptyTextSmall: { color: Colors.textSecondary, fontSize: 12, fontStyle: 'italic', textAlign: 'center', padding: 10 },
-    historyItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: Colors.border + '50' },
+    emptyText: { fontSize: 13, fontStyle: 'italic' },
+    emptySubtext: { fontSize: 11, marginTop: 4, textAlign: 'center' },
+    emptyTextSmall: { fontSize: 12, fontStyle: 'italic', textAlign: 'center', padding: 10 },
+    historyItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1 },
     historyLeft: { flex: 1 },
     dateBadge: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-    dateText: { color: Colors.textSecondary, fontSize: 11, marginLeft: 5 },
-    serviceName: { color: Colors.text, fontSize: 15, fontWeight: 'bold' },
-    serviceDetail: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+    dateText: { fontSize: 11, marginLeft: 5 },
+    serviceName: { fontSize: 15, fontWeight: 'bold' },
+    serviceDetail: { fontSize: 12, marginTop: 2 },
     actionsBox: { padding: 20, alignItems: 'center' },
-    actionBtn: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: Colors.border, width: '100%', justifyContent: 'center' },
-    actionBtnText: { color: Colors.textSecondary, fontWeight: 'bold', marginLeft: 10, fontSize: 13 }
+    actionBtn: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 12, borderWidth: 1, width: '100%', justifyContent: 'center' },
+    actionBtnText: { fontWeight: 'bold', marginLeft: 10, fontSize: 13 }
 });

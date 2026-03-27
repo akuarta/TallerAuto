@@ -160,6 +160,9 @@ class CharmAPI {
             const isVirtual = isFolder && !hrefMatch;
 
             let finalName = content;
+            // Purificar nombre para legibilidad
+            finalName = CharmAPI.purifyName(finalName);
+
             // Robust deep decode for UI
             while (finalName.includes('%')) {
                 try {
@@ -188,18 +191,45 @@ class CharmAPI {
             const hasImg = inputHtml.includes('<img');
             
             if (hasImg || hasSignificantText) {
-                return [{ 
-                    type: 'item', 
-                    name: '📖 Ver Documento o Información', 
-                    path: cleanCurrentPath, 
-                    isNavigableDir: false, 
-                    hasLink: true, 
-                    isVirtual: false 
-                }];
+                items.push({
+                    type: 'item',
+                    name: '📄 Ver contenido técnico...',
+                    path: currentPath,
+                    isNavigableDir: true,
+                    hasLink: true,
+                    level: 0
+                });
             }
         }
 
         return items;
+    }
+
+    /**
+     * Limpia nombres excesivamente largos o repetitivos de Charm.li
+     */
+    static purifyName(name) {
+        if (!name) return '';
+        
+        let clean = name;
+        // 1. Eliminar repeticiones de "(from ...)" si aparecen más de una vez
+        const fromPart = /\s*\(from [^)]+\)/gi;
+        const matches = clean.match(fromPart);
+        if (matches && matches.length > 1) {
+            // Mantener solo el primero o ninguno si es redundante
+            clean = clean.replace(fromPart, ''); 
+        }
+
+        // 2. Limpiar variantes de Volkswagen comunes que ensucian
+        clean = clean.replace(/ , High \([^)]+\) , Medium \([^)]+\) , Low \) , from April 2005/gi, '');
+        clean = clean.replace(/, Standard Equipment/gi, '');
+        
+        // 3. Recortar si sigue siendo ridículamente largo (más de 120 chars)
+        if (clean.length > 120) {
+            clean = clean.substring(0, 117) + '...';
+        }
+
+        return clean.trim();
     }
 
     static async getMakes() {

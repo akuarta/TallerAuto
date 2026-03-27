@@ -6,6 +6,7 @@ import { useData } from '../context/DataContext';
 import { Clipboard, ChevronRight, Trash2, Edit2, Search, Filter } from 'lucide-react-native';
 import { FAB } from '../components/FAB';
 import { CustomHeader } from '../components/CustomHeader';
+import { formatCurrency } from '../utils/formatters';
 
 export default function OrderListScreen({ navigation }) {
     const { orders, loading, clients, vehiculos, tecnicos } = useData();
@@ -107,7 +108,14 @@ export default function OrderListScreen({ navigation }) {
                                 <Clipboard color={Colors.primary} size={22} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.title}>{item.Cliente || 'Sin Cliente'}</Text>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={[styles.title, { flex: 1 }]} numberOfLines={1}>{item.Cliente || 'Sin Cliente'}</Text>
+                                    {item.Total != null && item.Total !== '' && (
+                                        <Text style={[styles.title, { color: '#4CAF50', marginLeft: 8 }]}>
+                                            {formatCurrency(item.Total)}
+                                        </Text>
+                                    )}
+                                </View>
                                 <Text style={styles.subtitle}>
                                     {getActualMatricula(item.Matricula)} - {item['Detalles del vehiculo'] || 'Sin vehículo'}
                                 </Text>

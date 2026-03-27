@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, TextInput, Text } from 'react-native';
-import { Colors } from '../constants';
+import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
 import { CategoryCard } from '../components/CategoryCard';
 import { Search, Car } from 'lucide-react-native';
 import { CustomHeader } from '../components/CustomHeader';
 
 export default function ModelListScreen({ route, navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const { brand, category } = route.params;
     const { garage, loading } = useData();
     const [search, setSearch] = useState('');
@@ -26,11 +28,11 @@ export default function ModelListScreen({ route, navigation }) {
             <CustomHeader title={brand.toUpperCase()} />
             <View style={styles.content}>
                 <View style={styles.searchContainer}>
-                    <Search size={20} color={Colors.textSecondary} style={{ marginRight: 8 }} />
+                    <Search size={20} color={colors.textSecondary} style={{ marginRight: 8 }} />
                     <TextInput
                         style={styles.input}
                         placeholder={`Buscar modelo de ${brand}...`}
-                        placeholderTextColor={Colors.textSecondary}
+                        placeholderTextColor={colors.textSecondary}
                         value={search}
                         onChangeText={setSearch}
                     />
@@ -42,7 +44,7 @@ export default function ModelListScreen({ route, navigation }) {
                         <CategoryCard
                             title={item}
                             onPress={() => navigation.navigate('VehicleList', { brand, category, model: item })}
-                            icon={<Car size={24} color={Colors.primary} />}
+                            icon={<Car size={24} color={colors.primary} />}
                         />
                     )}
                 />
@@ -51,13 +53,13 @@ export default function ModelListScreen({ route, navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.background },
+const getStyles = (colors) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
     content: { padding: 16, flex: 1 },
     searchContainer: {
-        flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card,
+        flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card,
         borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 16,
-        borderWidth: 1, borderColor: Colors.border,
+        borderWidth: 1, borderColor: colors.border,
     },
-    input: { flex: 1, color: Colors.text, fontSize: 16 },
+    input: { flex: 1, color: colors.text, fontSize: 16 },
 });

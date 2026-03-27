@@ -27,23 +27,13 @@ export default function GarageScreen({ navigation }) {
         o.Estado?.toLowerCase().includes('proceso')
     );
 
-    // Obtener entradas registradas
-    const registeredEntries = entradas || [];
-
-    // Combinar datos para mostrar
-    const garageVehicles = [
-        ...activeOrders.map(order => ({
-            ...order,
-            type: 'orden',
-            estado: order.Estado,
-            fecha: order['Fecha Recepcion']
-        })),
-        ...registeredEntries.map(entry => ({
-            ...entry,
-            type: 'entrada',
-            estado: entry.Estado || 'En Taller'
-        }))
-    ];
+    // Combinar datos para mostrar (solo usamos órdenes activas para evitar duplicados con entradas históricas)
+    const garageVehicles = activeOrders.map(order => ({
+        ...order,
+        type: 'orden',
+        estado: order.Estado,
+        fecha: order['Fecha Recepcion']
+    }));
 
     // Filtrar
     const filteredVehicles = garageVehicles.filter(v => {
